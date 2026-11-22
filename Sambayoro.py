@@ -280,7 +280,13 @@ def init_db():
         "air_delay": "Environ 15 jours (estimation habituelle pouvant varier selon le départ, le traitement des colis, le transport et les formalités)",
         "air_rate_info": "Offres sélectionnées 'Transport inclus' (selon conditions précisées par SF) ou calcul au poids selon la nature du produit.",
         "sea_delay": "Environ 2 mois (à titre indicatif et sous réserve des opérations logistiques)",
-        "sea_rate_info": "Option économique pour gros volumes. Tarification 'Hors transport' : le transport est calculé séparément et réglé après l'arrivée des marchandises au Sénégal.",
+        "sea_rate_info": "190 000 F CFA / CBM (m³). Tarif calculé selon le volume, hors poids. Délai à confirmer selon le départ et l’acheminement.",
+        "sourcing_fee": "2000",
+        "validation_fee": "5000",
+        "small_order_fee": "10000",
+        "air_standard_rate": "9000",
+        "air_express_rate": "14000",
+        "sea_rate_cbm": "190000",
         "payment_methods": "Wave (76 866 10 90), Orange Money (76 866 10 90), Virement bancaire, Espèces (Agence Saint-Louis / Relais Dakar)",
         "banner_announcement": "🚀 SF GROUPAGE CHINE – SAINT-LOUIS : Groupage Aérien (~15 jours) & Maritime (~2 mois) ouverts !",
         "faq_text": "**1. Comment fonctionne le groupage ?**\nVous choisissez un produit ouvert à la validation ou vous nous envoyez un lien (1688, Alibaba, Taobao, Pinduoduo...). Nous vérifions, proposons un prix et des conditions, puis vous validez.\n\n**2. Les délais sont-ils garantis ?**\nNon, les délais habituels d'environ 15 jours en aérien et d'environ 2 mois en maritime sont des estimations et peuvent connaître des retards indépendants de notre volonté.\n\n**3. Quand paie-t-on le transport maritime ?**\nLes offres maritimes de SF sont indiquées 'Hors transport' : le fret est calculé séparément et réglé après l'arrivée des marchandises au Sénégal selon les conditions communiquées avant validation.",
@@ -494,10 +500,10 @@ if banner:
 # ==========================================
 if not st.session_state.user:
     menu = ["🏠 Accueil", "✈️ Groupage Aérien", "🚢 Groupage Maritime", "🛍️ Catalogue à valider",
-            "📝 Soumettre un produit", "ℹ️ Comment ça marche & FAQ", "📞 Contact & CGU", "🔐 Connexion / Inscription"]
+            "📝 Soumettre un produit", "💰 Tarifs & Calculateur", "ℹ️ Comment ça marche & FAQ", "📞 Contact & CGU", "🔐 Connexion / Inscription"]
 elif st.session_state.user['role'] == 'client':
     menu = ["📊 Mon Tableau de Bord", "📝 Soumettre un produit", "🛍️ Catalogue à valider", "✈️ Groupage Aérien",
-            "🚢 Groupage Maritime", "📦 Mes Demandes & Commandes", "💳 Mes Paiements & Reçus",
+            "🚢 Groupage Maritime", "💰 Tarifs & Calculateur", "📦 Mes Demandes & Commandes", "💳 Mes Paiements & Reçus",
             "🚚 Suivi de mes Colis", "🔔 Notifications & Profil", "🏠 Accueil Vitrine", "📞 Contact & CGU"]
 elif st.session_state.user['role'] == 'agent':
     menu = ["📦 Espace Agent Logistique", "🏠 Accueil Vitrine"]
@@ -655,6 +661,8 @@ elif choice == "📝 Soumettre un produit":
             variants = c1.text_input("Couleur, taille, modèle ou variante *")
             k_price = c1.text_input("Prix affiché et devise (si connus)")
             mode = c2.selectbox("Mode souhaité *", ["Aerien", "Maritime"])
+            air_type = c2.selectbox("Formule aérienne", ["Standard (~15 jours)", "Express (~5 jours)"]) if mode == "Aerien" else "Maritime (délai à confirmer)"
+            service_type = c2.selectbox("Service d’accompagnement", ["Aucun / déjà choisi", "Sourcing de produits (2 000 F CFA)", "Validation du panier (5 000 F CFA)", "Validation petites quantités (10 000 F CFA)", "Commande en gros (sur devis)"])
             city = c2.text_input("Ville de livraison au Sénégal *", value=st.session_state.user['city'])
             pkg = c2.text_input("Options / Emballage / Personnalisation")
             deadline = c2.date_input("Date limite éventuelle", value=None)
@@ -669,11 +677,39 @@ elif choice == "📝 Soumettre un produit":
                     conn = get_connection()
                     conn.execute('''INSERT INTO requests (ref, user_id, product_name, link, image_data, quantity, variants, known_price, packaging_options, delivery_city, mode, deadline, comment, status, created_at)
                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Nouvelle demande', ?)''',
-                                 (ref, st.session_state.user['id'], p_name, p_link, photo.read() if photo else None, qty, variants, k_price, pkg, city, mode, str(deadline) if deadline else "", comment, now))
+                                 (ref, st.session_state.user['id'], p_name, p_link, photo.read() if photo else None, qty, variants, k_price, pkg, city, mode, str(deadline) if deadline else "", f"Service : {service_type}\nTransport : {air_type}\nCommentaire : {comment}", now))
                     conn.commit()
                     conn.close()
                     add_notification(st.session_state.user['id'], f"Demande {ref} envoyée", f"Demande '{p_name}' enregistrée.")
                     st.success(f"✅ Demande **{ref}** transmise à l'administrateur !")
+
+elif choice == "💰 Tarifs & Calculateur":
+    st.header("💰 Tarifs des services & estimation transport")
+    st.caption("Tarifs indicatifs repris du guide de services. Les marchandises, frais de service et transport sont distincts.")
+    st.subheader("🛍️ Services d’achat en Chine")
+    fee1, fee2, fee3, fee4 = st.columns(4)
+    fee1.metric("Sourcing", f"{int(get_setting('sourcing_fee') or 2000):,} F CFA".replace(",", " "))
+    fee2.metric("Validation panier", f"{int(get_setting('validation_fee') or 5000):,} F CFA".replace(",", " "))
+    fee3.metric("Petites quantités", f"{int(get_setting('small_order_fee') or 10000):,} F CFA".replace(",", " "))
+    fee4.metric("Commandes en gros", "Sur devis")
+    st.markdown("Recherche de produits et fournisseurs sur Alibaba, 1688, Pinduoduo, Taobao, AliExpress et autres plateformes. Vérification des articles, quantités et informations avant validation.")
+    st.divider()
+    st.subheader("✈️ Calcul estimatif du transport aérien")
+    air_kind = st.radio("Formule", ["Standard (~15 jours)", "Express (~5 jours)"], horizontal=True)
+    weight = st.number_input("Poids estimé (kg)", min_value=0.0, value=1.0, step=0.5)
+    air_rate = int(get_setting('air_standard_rate') or 9000) if air_kind.startswith("Standard") else int(get_setting('air_express_rate') or 14000)
+    st.metric("Estimation du fret aérien", f"{weight * air_rate:,.0f} F CFA".replace(",", " "), f"{air_rate:,} F CFA/kg".replace(",", " "))
+    st.caption("Standard : environ 15 jours · Express : environ 5 jours. Délais indicatifs susceptibles de varier.")
+    st.divider()
+    st.subheader("🚢 Calcul estimatif du transport maritime")
+    volume = st.number_input("Volume estimé (CBM / m³)", min_value=0.0, value=0.1, step=0.05, format="%.3f")
+    sea_rate = int(get_setting('sea_rate_cbm') or 190000)
+    st.metric("Estimation du fret maritime", f"{volume * sea_rate:,.0f} F CFA".replace(",", " "), f"{sea_rate:,} F CFA/CBM".replace(",", " "))
+    st.caption("Le maritime est facturé selon le volume occupé, et non le poids. Délai à confirmer selon départ et acheminement.")
+    st.info("À retenir : prix des marchandises, frais de service et transport sont distincts. Cette estimation ne constitue pas un devis ferme. Transmettez les liens/photos, quantités et mode d’expédition pour obtenir une estimation confirmée.")
+    if st.button("📝 Soumettre une demande avec ces tarifs", use_container_width=True):
+        st.session_state['top_navigation'] = "📝 Soumettre un produit"
+        st.rerun()
 
 elif choice == "ℹ️ Comment ça marche & FAQ":
     st.header("ℹ️ Comment ça marche & FAQ")
