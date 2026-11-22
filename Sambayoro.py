@@ -436,6 +436,27 @@ a { color:#BBF7D0 !important; }
   .main-header h1 { font-size:1.22rem !important; }
   [data-testid="stRadio"] label { font-size:.8rem !important; padding:.35rem .4rem !important; }
 }
+/* PREMIUM FINISH — refined surfaces, depth, motion and spacing */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+.stApp, .stApp * { font-family:'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+.block-container { padding-left:clamp(1rem,3vw,2.6rem) !important; padding-right:clamp(1rem,3vw,2.6rem) !important; }
+.main-header { background:linear-gradient(125deg,rgba(5,15,12,.98),rgba(16,54,40,.96) 58%,rgba(10,100,70,.93)) !important; border-color:rgba(246,211,101,.32) !important; }
+.main-header:before { content:"SF GROUPAGE  •  LOGISTIQUE INTERNATIONALE"; display:block; font-size:.72rem; letter-spacing:.19em; font-weight:800; color:#F6D365; margin-bottom:.85rem; }
+.card, div[data-testid="stMetric"], [data-testid="stExpander"], [data-testid="stForm"] { backdrop-filter:blur(12px); }
+.card { border-color:rgba(167,243,208,.15) !important; transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease; }
+.card:hover { transform:translateY(-2px); border-color:rgba(246,211,101,.45) !important; box-shadow:0 16px 34px rgba(0,0,0,.36); }
+div[data-testid="stMetric"] { border-color:rgba(246,211,101,.18) !important; position:relative; overflow:hidden; }
+div[data-testid="stMetric"]:after { content:""; position:absolute; top:0; left:0; width:100%; height:2px; background:linear-gradient(90deg,#16A34A,#F6D365,transparent); opacity:.8; }
+[data-testid="stTabs"] [role="tab"] { border-radius:10px 10px 0 0; transition:all .16s ease; }
+[data-testid="stTabs"] [role="tab"]:hover { background:rgba(52,211,153,.09); }
+.stButton button,.stFormSubmitButton button,[data-testid="stDownloadButton"] button { box-shadow:0 4px 14px rgba(0,0,0,.18); letter-spacing:.01em; }
+.stButton button[kind="primary"],.stFormSubmitButton button[kind="primary"] { background:linear-gradient(135deg,#0C8A5B,#087567) !important; box-shadow:0 7px 22px rgba(16,185,129,.2); }
+[data-testid="stAlert"] { box-shadow:0 8px 20px rgba(0,0,0,.16); }
+[data-testid="stDataFrame"] { background:#0D1914; border:1px solid rgba(167,243,208,.18) !important; }
+.sf-footer { border-color:rgba(246,211,101,.28) !important; }
+.sf-feature { backdrop-filter:blur(8px); }
+@media (prefers-reduced-motion: reduce) { *,*:before,*:after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
+@media (max-width:640px) { .main-header:before { font-size:.62rem; letter-spacing:.12em; } .card:hover { transform:none; } }
 </style>
 """, unsafe_allow_html=True)
 
