@@ -438,7 +438,12 @@ a { color:#BBF7D0 !important; }
 }
 /* PREMIUM FINISH — refined surfaces, depth, motion and spacing */
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-.stApp, .stApp * { font-family:'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+/* Apply premium font to content, but preserve Streamlit's icon font. */
+.stApp, .stApp *:not([data-testid="stIconMaterial"]):not(.material-symbols-rounded):not(.material-icons):not([class*="material-symbols"]):not([class*="material-icons"]) { font-family:'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+/* Prevent icon ligatures from rendering as raw text or overlapping button labels. */
+[data-testid="stIconMaterial"], .material-symbols-rounded, .material-icons, [class*="material-symbols"], [class*="material-icons"] { font-family:'Material Symbols Rounded','Material Icons' !important; font-weight:normal !important; font-style:normal !important; letter-spacing:normal !important; text-transform:none !important; line-height:1 !important; white-space:nowrap !important; word-wrap:normal !important; direction:ltr !important; -webkit-font-feature-settings:'liga' !important; font-feature-settings:'liga' !important; }
+/* Hide decorative icons inside form-submit buttons for a clean, stable label. */
+.stFormSubmitButton button [data-testid="stIconMaterial"], .stFormSubmitButton button .material-symbols-rounded, .stFormSubmitButton button .material-icons { display:none !important; }
 .block-container { padding-left:clamp(1rem,3vw,2.6rem) !important; padding-right:clamp(1rem,3vw,2.6rem) !important; }
 .main-header { background:linear-gradient(125deg,rgba(5,15,12,.98),rgba(16,54,40,.96) 58%,rgba(10,100,70,.93)) !important; border-color:rgba(246,211,101,.32) !important; }
 .main-header:before { content:"SF GROUPAGE  •  LOGISTIQUE INTERNATIONALE"; display:block; font-size:.72rem; letter-spacing:.19em; font-weight:800; color:#F6D365; margin-bottom:.85rem; }
