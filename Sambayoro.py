@@ -5,6 +5,7 @@ import hashlib
 import random
 import string
 import urllib.parse
+import requests
 from datetime import datetime
 
 # ==========================================
@@ -43,6 +44,44 @@ def update_setting(key: str, value: str):
     conn.commit()
     conn.close()
 
+def normalize_whatsapp_phone(phone: str) -> str:
+    """Format phone for WhatsApp Cloud API (digits only, international format)."""
+    digits = ''.join(ch for ch in str(phone or '') if ch.isdigit())
+    if digits.startswith('00'):
+        digits = digits[2:]
+    if digits.startswith('0'):
+        digits = '221' + digits[1:]
+    elif len(digits) == 9 and not digits.startswith('221'):
+        digits = '221' + digits
+    return digits
+
+
+def send_whatsapp_message(phone: str, message: str) -> tuple[bool, str]:
+    """Send a WhatsApp notification through Meta WhatsApp Cloud API."""
+    if get_setting('wa_notifications_enabled') != '1':
+        return False, 'Notifications WhatsApp désactivées.'
+    token = get_setting('wa_access_token').strip()
+    phone_id = get_setting('wa_phone_number_id').strip()
+    recipient = normalize_whatsapp_phone(phone)
+    if not token or not phone_id:
+        return False, 'Token API ou Phone Number ID manquant.'
+    if not recipient:
+        return False, 'Numéro destinataire invalide.'
+    try:
+        response = requests.post(
+            f'https://graph.facebook.com/v20.0/{phone_id}/messages',
+            headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+            json={'messaging_product': 'whatsapp', 'recipient_type': 'individual',
+                  'to': recipient, 'type': 'text', 'text': {'preview_url': False, 'body': message}},
+            timeout=15
+        )
+        response.raise_for_status()
+        return True, 'Message WhatsApp envoyé.'
+    except requests.RequestException as exc:
+        detail = getattr(getattr(exc, 'response', None), 'text', str(exc))
+        return False, f'Échec WhatsApp API : {detail[:350]}'
+
+
 def add_notification(user_id: int, title: str, message: str):
     conn = get_connection()
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -50,8 +89,25 @@ def add_notification(user_id: int, title: str, message: str):
         "INSERT INTO notifications (user_id, title, message, created_at) VALUES (?, ?, ?, ?)",
         (user_id, title, message, now)
     )
+    user = conn.execute('SELECT full_name, whatsapp FROM users WHERE id=?', (user_id,)).fetchone()
     conn.commit()
     conn.close()
+
+    # WhatsApp en option : envoie les notifications importantes au client.
+    if user and get_setting('wa_notifications_enabled') == '1':
+        category = 'general'
+        lower = f'{title} {message}'.lower()
+        if any(word in lower for word in ('commande', 'cmd-', 'order')):
+            category = 'orders'
+        elif any(word in lower for word in ('paiement', 'payment', 'pay-')):
+            category = 'payments'
+        elif any(word in lower for word in ('colis', 'suivi', 'expédi', 'transit', 'livré', 'arrivé')):
+            category = 'tracking'
+        elif any(word in lower for word in ('demande', 'devis', 'produit')):
+            category = 'requests'
+        if get_setting(f'wa_notify_{category}') == '1' or get_setting('wa_notify_general') == '1':
+            text_message = f'Bonjour {user["full_name"]},\n\n{title}\n{message}\n\nSF GROUPAGE CHINE – SAINT-LOUIS'
+            send_whatsapp_message(user['whatsapp'], text_message)
 
 def log_order_event(order_id: int, status: str, description: str, updated_by: str):
     conn = get_connection()
@@ -942,6 +998,48 @@ elif st.session_state.user and st.session_state.user['role'] == 'admin':
                     update_setting(k, v)
                 st.success("Paramètres enregistrés !")
                 st.rerun()
+
+        st.markdown("---")
+        st.subheader("📲 Notifications automatiques WhatsApp")
+        st.caption("Les messages sont envoyés via l’API officielle WhatsApp Cloud de Meta. Il faut un compte Meta Business, un numéro configuré et un jeton API valide.")
+        with st.form("whatsapp_notifications_config"):
+            wa_on = st.checkbox("Activer les notifications WhatsApp automatiques", value=get_setting("wa_notifications_enabled") == "1")
+            wa_phone_id = st.text_input("Phone Number ID (Meta)", value=get_setting("wa_phone_number_id"))
+            wa_token = st.text_input("Access Token", value=get_setting("wa_access_token"), type="password", help="Token API WhatsApp Cloud. Il est stocké dans les paramètres SQLite de cette application.")
+            wa_test_phone = st.text_input("Numéro pour le test (format Sénégal ou international)", value=get_setting("wa_test_phone"))
+            st.markdown("**Choisir les notifications à envoyer :**")
+            wa_orders = st.checkbox("Commandes / validation", value=get_setting("wa_notify_orders") == "1")
+            wa_requests = st.checkbox("Demandes / devis", value=get_setting("wa_notify_requests") == "1")
+            wa_payments = st.checkbox("Paiements", value=get_setting("wa_notify_payments") == "1")
+            wa_tracking = st.checkbox("Colis / suivi / livraison", value=get_setting("wa_notify_tracking") == "1")
+            wa_general = st.checkbox("Autres notifications", value=get_setting("wa_notify_general") == "1")
+            if st.form_submit_button("💾 Enregistrer la configuration WhatsApp"):
+                settings_to_save = {
+                    "wa_notifications_enabled": "1" if wa_on else "0",
+                    "wa_phone_number_id": wa_phone_id.strip(),
+                    "wa_access_token": wa_token.strip(),
+                    "wa_test_phone": wa_test_phone.strip(),
+                    "wa_notify_orders": "1" if wa_orders else "0",
+                    "wa_notify_requests": "1" if wa_requests else "0",
+                    "wa_notify_payments": "1" if wa_payments else "0",
+                    "wa_notify_tracking": "1" if wa_tracking else "0",
+                    "wa_notify_general": "1" if wa_general else "0",
+                }
+                for key, value in settings_to_save.items():
+                    update_setting(key, value)
+                st.success("Configuration WhatsApp sauvegardée.")
+                st.rerun()
+
+        if st.button("📨 Envoyer un message de test WhatsApp", key="wa_test_button"):
+            if get_setting("wa_notifications_enabled") != "1":
+                st.warning("Active d’abord les notifications et sauvegarde la configuration.")
+            else:
+                test_msg = "✅ Test réussi ! Les notifications WhatsApp de SF GROUPAGE CHINE – SAINT-LOUIS sont configurées."
+                ok, detail = send_whatsapp_message(get_setting("wa_test_phone"), test_msg)
+                if ok:
+                    st.success(detail)
+                else:
+                    st.error(detail)
 
     conn.close()
 
