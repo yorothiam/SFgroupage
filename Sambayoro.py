@@ -126,6 +126,7 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         role TEXT DEFAULT 'client',
+        username TEXT UNIQUE,
         full_name TEXT NOT NULL,
         whatsapp TEXT UNIQUE NOT NULL,
         city TEXT NOT NULL,
@@ -136,6 +137,12 @@ def init_db():
         status TEXT DEFAULT 'actif',
         created_at TEXT
     )''')
+
+    # Migration douce pour les bases déjà existantes
+    user_columns = [row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()]
+    if "username" not in user_columns:
+        c.execute("ALTER TABLE users ADD COLUMN username TEXT")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL")
 
     c.execute('''CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
@@ -303,6 +310,15 @@ def init_db():
                      VALUES ('Lot de 12 Sacs bandoulière', 'Modèle tendance pour revendeurs et boutiques.', 'Coloris variés | Dimensions moyennes', 54000, 1, 4.0, 'Aerien', 1, 'Transport aérien inclus selon conditions de cette offre', '2026-11-28', 'Environ 15 jours', 1, 1)''')
         c.execute('''INSERT INTO products (title, description, specs, price_fcfa, min_qty, est_weight_kg, mode, transport_included, transport_details, deadline, est_delay, available, batch_id)
                      VALUES ('Presse thermique multifonction', 'Pour personnalisation mugs, t-shirts et casquettes.', '220V | Châssis robuste', 135000, 1, 18.0, 'Maritime', 0, 'Hors transport : fret maritime calculé séparément et réglé à l arrivée au Sénégal', '2026-12-10', 'Environ 2 mois', 1, 2)''')
+
+    # Crée/actualise le compte administrateur demandé (connexion par identifiant)
+    admin_row = c.execute("SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1").fetchone()
+    if admin_row:
+        c.execute("UPDATE users SET username=?, password_hash=?, status='actif' WHERE id=?",
+                  ('sambafall', hash_password('samba2026'), admin_row['id']))
+    else:
+        c.execute("INSERT INTO users (role, username, full_name, whatsapp, city, address, email, company, password_hash, status, created_at) VALUES ('admin', ?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?)",
+                  ('sambafall', 'Administrateur Sambafall', 'ADMIN-SAMBafall', 'Saint-Louis', 'Saint-Louis', 'admin@sfgroupage.sn', 'SF Groupage Chine', hash_password('samba2026'), now))
 
     conn.commit()
     conn.close()
@@ -578,11 +594,11 @@ elif choice == "🔐 Connexion / Inscription":
     t1, t2, t3 = st.tabs(["🔑 Connexion", "📝 Inscription", "❓ Mot de passe oublié"])
     with t1:
         with st.form("login_f"):
-            ph = st.text_input("Numéro WhatsApp")
+            ph = st.text_input("Nom d’utilisateur ou numéro WhatsApp")
             pw = st.text_input("Mot de passe", type="password")
             if st.form_submit_button("Se connecter"):
                 conn = get_connection()
-                u = conn.execute("SELECT * FROM users WHERE whatsapp=? AND password_hash=?", (ph.strip(), hash_password(pw))).fetchone()
+                u = conn.execute("SELECT * FROM users WHERE (whatsapp=? OR username=?) AND password_hash=?", (ph.strip(), ph.strip(), hash_password(pw))).fetchone()
                 conn.close()
                 if u and u['status'] == 'actif':
                     st.session_state.user = dict(u)
@@ -592,7 +608,7 @@ elif choice == "🔐 Connexion / Inscription":
                 else:
                     st.error("Identifiants invalides.")
         with st.expander("Comptes de test"):
-            st.write("Admin : `76 866 10 90` / `admin123` | Agent : `77 000 00 01` / `agent123` | Client : `77 123 45 67` / `client123`")
+            st.write("Administrateur : identifiant `sambafall` | mot de passe `samba2026` (à changer après première connexion).")
     with t2:
         with st.form("reg_f"):
             name = st.text_input("Prénom et nom *")
