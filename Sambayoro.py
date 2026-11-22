@@ -396,7 +396,46 @@ input::placeholder,textarea::placeholder { color:#B4C9BE !important; opacity:1 !
 hr { border-color:#29463B !important; }
 a { color:#BBF7D0 !important; }
 *:focus-visible { outline:2px solid #34D399 !important; outline-offset:2px; }
-@media(max-width:750px){ .main-header{padding:1.3rem;} .main-header h1{font-size:1.5rem;} [data-testid="stRadio"] label{padding:.3rem .5rem;} .card{padding:.9rem;} }
+/* RESPONSIVE DESIGN: mobile, tablet and desktop */
+/* Tablet: reduce gutters and allow column layouts to wrap naturally */
+@media (max-width: 1024px) {
+  .block-container { padding-left:1.25rem !important; padding-right:1.25rem !important; }
+  .main-header { padding:1.6rem; border-radius:20px; }
+  [data-testid="stHorizontalBlock"] { flex-wrap:wrap !important; gap: .8rem !important; }
+  [data-testid="stHorizontalBlock"] > [data-testid="column"] { min-width:min(260px, 100%) !important; flex:1 1 260px !important; }
+  [data-testid="stMetric"] { padding:.85rem !important; }
+}
+/* Phones */
+@media (max-width: 640px) {
+  .block-container { padding: .65rem .7rem 1.4rem !important; max-width:100vw !important; }
+  .main-header { padding:1rem .95rem !important; border-radius:15px !important; margin-bottom:.75rem !important; }
+  .main-header h1 { font-size:clamp(1.25rem, 6vw, 1.7rem) !important; line-height:1.2 !important; }
+  .main-header p { font-size:.92rem !important; line-height:1.4 !important; }
+  .main-header:after { width:110px; height:110px; right:-35px; top:-30px; box-shadow:0 0 0 18px rgba(255,255,255,.035),0 0 0 36px rgba(255,255,255,.02); }
+  [data-testid="stHorizontalBlock"] { flex-direction:column !important; gap:.55rem !important; }
+  [data-testid="stHorizontalBlock"] > [data-testid="column"] { width:100% !important; min-width:100% !important; flex:1 1 100% !important; }
+  [data-testid="stMetric"] { padding:.7rem .8rem !important; border-radius:12px !important; }
+  [data-testid="stMetricValue"] { font-size:1.35rem !important; }
+  .card { padding:.8rem !important; border-radius:14px !important; }
+  .banner-box { padding:.75rem .8rem !important; font-size:.92rem !important; }
+  [data-testid="stRadio"] > div[role="radiogroup"] { gap:.35rem !important; padding:.45rem !important; }
+  [data-testid="stRadio"] label { padding:.45rem .55rem !important; font-size:.88rem !important; }
+  .stButton button,.stFormSubmitButton button,[data-testid="stDownloadButton"] button { width:100% !important; min-height:2.85rem !important; white-space:normal !important; }
+  input,textarea,[data-baseweb="select"] > div { font-size:16px !important; } /* prevents iOS zoom */
+  [data-testid="stTabs"] [role="tab"] { padding:.45rem .6rem !important; white-space:normal !important; }
+  [data-testid="stDataFrame"], [data-testid="stTable"] { max-width:100% !important; overflow-x:auto !important; }
+  img,video { max-width:100% !important; height:auto !important; }
+  .whatsapp-btn { display:block !important; width:100% !important; box-sizing:border-box; padding:12px !important; }
+  .sf-footer { padding:1rem .8rem !important; border-radius:15px !important; margin-top:1.5rem !important; }
+  .sf-feature { margin:.25rem .15rem !important; padding:.4rem .65rem !important; font-size:.85rem !important; }
+  h1,h2,h3 { overflow-wrap:anywhere; }
+}
+/* Small screens / extra narrow phones */
+@media (max-width: 380px) {
+  .block-container { padding-left:.45rem !important; padding-right:.45rem !important; }
+  .main-header h1 { font-size:1.22rem !important; }
+  [data-testid="stRadio"] label { font-size:.8rem !important; padding:.35rem .4rem !important; }
+}
 </style>
 """, unsafe_allow_html=True)
 
