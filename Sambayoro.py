@@ -14,7 +14,7 @@ st.set_page_config(
     page_title="SF GROUPAGE CHINE – SAINT-LOUIS",
     page_icon="🚢",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 DB_NAME = "sf_groupage_unique.db"
@@ -254,50 +254,40 @@ def init_db():
 init_db()
 
 # ==========================================
-# STYLES CSS
+# STYLES CSS — IDENTITÉ VISUELLE PREMIUM
 # ==========================================
 st.markdown("""
 <style>
-    .main-header {
-        background: linear-gradient(135deg, #0B2545 0%, #134074 100%);
-        padding: 1.4rem 1.8rem;
-        border-radius: 12px;
-        color: white;
-        margin-bottom: 1rem;
-    }
-    .main-header h1 { color: white; margin: 0; font-size: 1.85rem; }
-    .main-header p { color: #E0E7FF; margin: 0.3rem 0 0 0; font-style: italic; }
-    .banner-box {
-        background-color: #FEF3C7;
-        border-left: 5px solid #D97706;
-        padding: 0.75rem 1.1rem;
-        border-radius: 6px;
-        color: #92400E;
-        font-weight: 500;
-        margin-bottom: 1rem;
-    }
-    .card {
-        background-color: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 10px;
-        padding: 1.1rem;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.04);
-        margin-bottom: 1rem;
-    }
-    .badge-air { background-color: #DBEAFE; color: #1E40AF; padding: 3px 9px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; }
-    .badge-sea { background-color: #D1FAE5; color: #065F46; padding: 3px 9px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; }
-    .badge-inc { background-color: #DCFCE7; color: #166534; padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; }
-    .badge-hors { background-color: #FEE2E2; color: #991B1B; padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: bold; }
-    .whatsapp-btn {
-        display: inline-block;
-        background-color: #25D366;
-        color: white !important;
-        padding: 9px 16px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: bold;
-        text-align: center;
-    }
+:root { --sf-navy:#102A43; --sf-blue:#1769AA; --sf-gold:#F5B942; --sf-ink:#243B53; }
+[data-testid="stSidebar"] { display:none; }
+[data-testid="stToolbar"], [data-testid="stHeaderActionElements"], #MainMenu,
+[data-testid="stStatusWidget"], [data-testid="stDecoration"], header { visibility:hidden !important; height:0 !important; }
+.stApp { background: linear-gradient(180deg,#F4F8FC 0%,#FFFFFF 38%,#F7FAFC 100%); color:var(--sf-ink); }
+.block-container { padding-top:1.15rem !important; padding-bottom:2rem !important; max-width:1500px; }
+.main-header { background:linear-gradient(120deg,#0B1F36 0%,#164E82 58%,#1E79A8 100%); padding:1.8rem 2rem; border-radius:22px; color:white; margin:0 0 1rem; box-shadow:0 16px 36px rgba(16,42,67,.18); position:relative; overflow:hidden; }
+.main-header:after { content:""; position:absolute; width:240px;height:240px;right:-65px;top:-90px;border:1px solid rgba(255,255,255,.15);border-radius:50%;box-shadow:0 0 0 35px rgba(255,255,255,.04),0 0 0 70px rgba(255,255,255,.03); }
+.main-header h1 { color:white !important; margin:0; font-size:clamp(1.5rem,3vw,2.3rem); letter-spacing:-.03em; }
+.main-header p { color:#D8EAFE; margin:.45rem 0 0; font-size:1rem; }
+.banner-box { background:#FFF7E6; border:1px solid #F6D28B; border-left:5px solid #E3A008; padding:.85rem 1.1rem; border-radius:12px; color:#805400; font-weight:600; margin-bottom:1rem; }
+.card { background:white; border:1px solid #E5EDF5; border-radius:18px; padding:1.15rem; box-shadow:0 8px 24px rgba(16,42,67,.055); margin-bottom:1rem; }
+div[data-testid="stMetric"] { background:#fff; border:1px solid #E5EDF5; padding:1rem; border-radius:15px; box-shadow:0 4px 14px rgba(16,42,67,.04); }
+h1,h2,h3 { color:#102A43 !important; letter-spacing:-.02em; }
+h2 { padding-bottom:.4rem; border-bottom:1px solid #E7EEF5; }
+.stButton button, .stFormSubmitButton button { border-radius:11px !important; font-weight:650 !important; min-height:2.7rem; }
+.stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"] { background:linear-gradient(120deg,#1769AA,#0D4778) !important; border:0 !important; }
+[data-testid="stRadio"] > div[role="radiogroup"] { display:flex; flex-wrap:wrap; gap:.35rem; background:#fff; border:1px solid #E2EAF2; padding:.55rem; border-radius:16px; box-shadow:0 5px 18px rgba(16,42,67,.045); }
+[data-testid="stRadio"] label { background:#F5F8FB; border-radius:10px; padding:.35rem .75rem; border:1px solid transparent; }
+[data-testid="stRadio"] label:hover { border-color:#A8C8E4; background:#EAF4FC; }
+.badge-air { background:#DBEAFE; color:#1E40AF; padding:3px 9px; border-radius:10px; font-size:.8rem; font-weight:700; }
+.badge-sea { background:#D1FAE5; color:#065F46; padding:3px 9px; border-radius:10px; font-size:.8rem; font-weight:700; }
+.badge-inc { background:#DCFCE7; color:#166534; padding:3px 8px; border-radius:7px; font-size:.78rem; font-weight:bold; }
+.badge-hors { background:#FEE2E2; color:#991B1B; padding:3px 8px; border-radius:7px; font-size:.78rem; font-weight:bold; }
+.whatsapp-btn { display:inline-block; background:linear-gradient(120deg,#20BD5A,#159447); color:white !important; padding:10px 16px; border-radius:10px; text-decoration:none; font-weight:bold; text-align:center; box-shadow:0 5px 14px rgba(32,189,90,.2); }
+.sf-footer { margin-top:3rem; padding:1.5rem; border-radius:20px; background:linear-gradient(120deg,#102A43,#1769AA); color:white; text-align:center; }
+.sf-footer h3 { color:white !important; margin:0 0 .5rem; }
+.sf-footer p { color:#DCEBFA; margin:.25rem 0; }
+.sf-feature { display:inline-block; margin:.35rem .4rem; padding:.45rem .75rem; border:1px solid rgba(255,255,255,.2); border-radius:30px; background:rgba(255,255,255,.08); }
+@media(max-width:750px){ .main-header{padding:1.25rem;} .main-header h1{font-size:1.45rem;} [data-testid="stRadio"] label{padding:.25rem .5rem;} }
 </style>
 """, unsafe_allow_html=True)
 
@@ -326,72 +316,36 @@ if banner:
     st.markdown(f'<div class="banner-box">{banner}</div>', unsafe_allow_html=True)
 
 # ==========================================
-# NAVIGATION LATÉRALE
+# NAVIGATION PRINCIPALE — BARRE EN HAUT
 # ==========================================
-with st.sidebar:
-    st.markdown(f"### {site_name}")
-    if st.session_state.user:
-        u = st.session_state.user
-        st.success(f"👤 **{u['full_name']}**\n\nRôle : `{u['role'].upper()}` | Ville : {u['city']}")
-        conn = get_connection()
-        unread = conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0", (u['id'],)).fetchone()[0]
-        conn.close()
-        if unread > 0:
-            st.warning(f"🔔 **{unread}** notification(s) non lue(s)")
-        if st.button("🚪 Se déconnecter", use_container_width=True):
+if not st.session_state.user:
+    menu = ["🏠 Accueil", "✈️ Groupage Aérien", "🚢 Groupage Maritime", "🛍️ Catalogue à valider",
+            "📝 Soumettre un produit", "ℹ️ Comment ça marche & FAQ", "📞 Contact & CGU", "🔐 Connexion / Inscription"]
+elif st.session_state.user['role'] == 'client':
+    menu = ["📊 Mon Tableau de Bord", "📝 Soumettre un produit", "🛍️ Catalogue à valider", "✈️ Groupage Aérien",
+            "🚢 Groupage Maritime", "📦 Mes Demandes & Commandes", "💳 Mes Paiements & Reçus",
+            "🚚 Suivi de mes Colis", "🔔 Notifications & Profil", "🏠 Accueil Vitrine", "📞 Contact & CGU"]
+elif st.session_state.user['role'] == 'agent':
+    menu = ["📦 Espace Agent Logistique", "🏠 Accueil Vitrine"]
+else:
+    menu = ["🛠️ Admin : Vue d'ensemble", "📋 Admin : Demandes Clients", "📦 Admin : Commandes & Suivi",
+            "🛍️ Admin : Catalogue Produits", "🚢 Admin : Vagues de Groupage", "🚚 Admin : Gestion des Colis",
+            "💰 Admin : Paiements & Finances", "👥 Admin : Clients & Équipe", "⚙️ Admin : Contenus & Paramètres",
+            "🏠 Aperçu Site Public"]
+
+if st.session_state.user:
+    u = st.session_state.user
+    top_left, top_right = st.columns([5,1])
+    with top_left:
+        st.caption(f"👤 {u['full_name']}  ·  Espace {u['role'].upper()}  ·  {u['city']}")
+    with top_right:
+        if st.button("🚪 Déconnexion", use_container_width=True):
             st.session_state.user = None
             st.rerun()
-    else:
-        st.info("Espace Visiteur — Connectez-vous pour commander et suivre vos colis.")
 
-    st.markdown("---")
-    if not st.session_state.user:
-        menu = [
-            "🏠 Accueil",
-            "✈️ Groupage Aérien",
-            "🚢 Groupage Maritime",
-            "🛍️ Catalogue à valider",
-            "📝 Soumettre un produit",
-            "ℹ️ Comment ça marche & FAQ",
-            "📞 Contact & CGU",
-            "🔐 Connexion / Inscription"
-        ]
-    elif st.session_state.user['role'] == 'client':
-        menu = [
-            "📊 Mon Tableau de Bord",
-            "📝 Soumettre un produit",
-            "🛍️ Catalogue à valider",
-            "✈️ Groupage Aérien",
-            "🚢 Groupage Maritime",
-            "📦 Mes Demandes & Commandes",
-            "💳 Mes Paiements & Reçus",
-            "🚚 Suivi de mes Colis",
-            "🔔 Notifications & Profil",
-            "🏠 Accueil Vitrine",
-            "📞 Contact & CGU"
-        ]
-    elif st.session_state.user['role'] == 'agent':
-        menu = [
-            "📦 Espace Agent Logistique",
-            "🏠 Accueil Vitrine"
-        ]
-    else:
-        menu = [
-            "🛠️ Admin : Vue d'ensemble",
-            "📋 Admin : Demandes Clients",
-            "📦 Admin : Commandes & Suivi",
-            "🛍️ Admin : Catalogue Produits",
-            "🚢 Admin : Vagues de Groupage",
-            "🚚 Admin : Gestion des Colis",
-            "💰 Admin : Paiements & Finances",
-            "👥 Admin : Clients & Équipe",
-            "⚙️ Admin : Contenus & Paramètres",
-            "🏠 Aperçu Site Public"
-        ]
-
-    choice = st.radio("Menu principal", menu)
-    st.markdown("---")
-    st.markdown(f'<a href="{get_whatsapp_link()}" target="_blank" class="whatsapp-btn" style="width:100%;">💬 WhatsApp ({whatsapp_num})</a>', unsafe_allow_html=True)
+choice = st.radio("Navigation", menu, horizontal=True, label_visibility="collapsed", key="top_navigation")
+st.markdown("---")
+st.markdown(f'<a href="{get_whatsapp_link()}" target="_blank" class="whatsapp-btn">💬 Assistance WhatsApp · {whatsapp_num}</a>', unsafe_allow_html=True)
 
 def render_product_card(prod, conn):
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -990,3 +944,22 @@ elif st.session_state.user and st.session_state.user['role'] == 'admin':
                 st.rerun()
 
     conn.close()
+
+# ==========================================
+# FOOTER PREMIUM — RASSURANCE & VALORISATION
+# ==========================================
+st.markdown(f"""
+<div class="sf-footer">
+    <h3>🚢 SF GROUPAGE CHINE · SAINT-LOUIS</h3>
+    <p>Votre passerelle entre les fournisseurs en Chine et le Sénégal.</p>
+    <div>
+      <span class="sf-feature">✈️ Groupage aérien</span>
+      <span class="sf-feature">🚢 Groupage maritime</span>
+      <span class="sf-feature">🔎 Suivi de commande</span>
+      <span class="sf-feature">🤝 Accompagnement personnalisé</span>
+    </div>
+    <p style="margin-top:1rem;">📍 Saint-Louis · Livraison Dakar & régions · 💬 {whatsapp_num}</p>
+    <p style="font-size:.82rem;opacity:.85;">Qualité · Confiance · Transparence · Satisfaction</p>
+</div>
+""", unsafe_allow_html=True)
+
