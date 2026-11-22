@@ -523,6 +523,19 @@ if st.session_state.user:
             st.session_state.user = None
             st.rerun()
 
+# Appliquer une navigation demandée AVANT de créer le widget radio.
+# Cela évite StreamlitWidgetAlreadyInstantiatedError lorsqu'un bouton
+# demande un changement de page pendant une exécution.
+if "next_navigation" in st.session_state:
+    requested_page = st.session_state.pop("next_navigation")
+    if requested_page in menu:
+        st.session_state["top_navigation"] = requested_page
+
+# La liste des pages varie selon le rôle : garantir que la valeur mémorisée
+# appartient toujours aux options actuellement disponibles.
+if st.session_state.get("top_navigation") not in menu:
+    st.session_state["top_navigation"] = menu[0]
+
 choice = st.radio("Navigation", menu, horizontal=True, label_visibility="collapsed", key="top_navigation")
 st.markdown("---")
 st.markdown(f'<a href="{get_whatsapp_link()}" target="_blank" class="whatsapp-btn">💬 Assistance WhatsApp · {whatsapp_num}</a>', unsafe_allow_html=True)
@@ -708,7 +721,8 @@ elif choice == "💰 Tarifs & Calculateur":
     st.caption("Le maritime est facturé selon le volume occupé, et non le poids. Délai à confirmer selon départ et acheminement.")
     st.info("À retenir : prix des marchandises, frais de service et transport sont distincts. Cette estimation ne constitue pas un devis ferme. Transmettez les liens/photos, quantités et mode d’expédition pour obtenir une estimation confirmée.")
     if st.button("📝 Soumettre une demande avec ces tarifs", use_container_width=True):
-        st.session_state['top_navigation'] = "📝 Soumettre un produit"
+        # La demande est appliquée au prochain rerun, avant la création du radio.
+        st.session_state["next_navigation"] = "📝 Soumettre un produit"
         st.rerun()
 
 elif choice == "ℹ️ Comment ça marche & FAQ":
@@ -1102,7 +1116,18 @@ elif st.session_state.user and st.session_state.user['role'] == 'admin':
         for p in conn.execute("SELECT p.*, u.full_name, o.ref as oref FROM payments p JOIN users u ON p.user_id=u.id JOIN orders o ON p.order_id=o.id ORDER BY p.id DESC").fetchall():
             with st.expander(f"{p['ref']} | {p['full_name']} — {p['amount']:,.0f} FCFA ({p['method']}) [{p['status']}]"):
                 if p['proof_data']:
-                    st.image(p['proof_data'], width=250)
+                    # Les justificatifs peuvent être des images ou des PDF.
+                    # Afficher les images et proposer le téléchargement des PDF.
+                    if p['proof_data'].startswith(b"%PDF"):
+                        st.download_button(
+                            "📄 Télécharger le justificatif PDF",
+                            data=p['proof_data'],
+                            file_name=f"justificatif_{p['ref']}.pdf",
+                            mime="application/pdf",
+                            key=f"proof_pdf_{p['id']}"
+                        )
+                    else:
+                        st.image(p['proof_data'], width=250)
                 a, b = st.columns(2)
                 if a.button("✅ Confirmer", key=f"ok_{p['id']}"):
                     conn.execute("UPDATE payments SET status='Confirmé', verified_by=? WHERE id=?", (adm_name, p['id']))
