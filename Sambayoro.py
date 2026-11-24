@@ -261,6 +261,20 @@ def init_db():
         updated_at TEXT
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS seller_products (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        seller_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        characteristics TEXT,
+        air_price REAL DEFAULT 0,
+        sea_price REAL DEFAULT 0,
+        image_data BLOB,
+        available INTEGER DEFAULT 1,
+        created_at TEXT,
+        FOREIGN KEY(seller_id) REFERENCES users(id)
+    )''')
+
     c.execute('''CREATE TABLE IF NOT EXISTS notifications (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -499,12 +513,14 @@ if banner:
 # NAVIGATION PRINCIPALE — BARRE EN HAUT
 # ==========================================
 if not st.session_state.user:
-    menu = ["🏠 Accueil", "✈️ Groupage Aérien", "🚢 Groupage Maritime", "🛍️ Catalogue à valider",
+    menu = ["🏠 Accueil", "✈️ Groupage Aérien", "🚢 Groupage Maritime", "🛍️ Catalogue à valider", "🛒 Produits vendeurs",
             "📝 Soumettre un produit", "💰 Tarifs & Calculateur", "ℹ️ Comment ça marche & FAQ", "📞 Contact & CGU", "🔐 Connexion / Inscription"]
 elif st.session_state.user['role'] == 'client':
-    menu = ["📊 Mon Tableau de Bord", "📝 Soumettre un produit", "🛍️ Catalogue à valider", "✈️ Groupage Aérien",
+    menu = ["📊 Mon Tableau de Bord", "📝 Soumettre un produit", "🛍️ Catalogue à valider", "🛒 Produits vendeurs", "✈️ Groupage Aérien",
             "🚢 Groupage Maritime", "💰 Tarifs & Calculateur", "📦 Mes Demandes & Commandes", "💳 Mes Paiements & Reçus",
             "🚚 Suivi de mes Colis", "🔔 Notifications & Profil", "🏠 Accueil Vitrine", "📞 Contact & CGU"]
+elif st.session_state.user['role'] == 'seller':
+    menu = ["🏪 Espace Vendeur", "🛒 Produits vendeurs", "🏠 Accueil Vitrine"]
 elif st.session_state.user['role'] == 'agent':
     menu = ["📦 Espace Agent Logistique", "🏠 Accueil Vitrine"]
 else:
@@ -661,6 +677,100 @@ elif choice == "🛍️ Catalogue à valider":
         render_product_card(p, conn)
     conn.close()
 
+elif choice == "🛒 Produits vendeurs":
+    st.header("🛒 Marketplace — produits partagés par les vendeurs")
+    search_term = st.text_input("🔎 Rechercher un produit, une caractéristique ou un vendeur")
+    conn = get_connection()
+    query = "SELECT sp.*, u.full_name, u.company, u.whatsapp FROM seller_products sp JOIN users u ON u.id=sp.seller_id WHERE sp.available=1"
+    params = []
+    if search_term.strip():
+        like = f"%{search_term.strip()}%"
+        query += " AND (sp.title LIKE ? OR sp.description LIKE ? OR sp.characteristics LIKE ? OR u.full_name LIKE ? OR u.company LIKE ?)"
+        params = [like]*5
+    query += " ORDER BY sp.created_at DESC"
+    listings = conn.execute(query, params).fetchall()
+    if not listings:
+        st.info("Aucun produit correspondant pour le moment. Les vendeurs peuvent publier leurs offres depuis leur espace.")
+    for item in listings:
+        with st.container(border=True):
+            cols = st.columns([1, 2])
+            with cols[0]:
+                if item['image_data']:
+                    st.image(item['image_data'], width=280)
+                else:
+                    st.markdown("<div style='height:180px;display:flex;align-items:center;justify-content:center;background:#14251F;border-radius:12px'>📦 Image non fournie</div>", unsafe_allow_html=True)
+            with cols[1]:
+                st.subheader(item['title'])
+                st.write(item['description'] or "")
+                st.caption("Caractéristiques : " + (item['characteristics'] or "Non précisées"))
+                p1, p2 = st.columns(2)
+                p1.metric("✈️ Prix groupage aérien", f"{item['air_price']:,.0f} FCFA")
+                p2.metric("🚢 Prix groupage maritime", f"{item['sea_price']:,.0f} FCFA")
+                st.caption(f"Vendeur : {item['company'] or item['full_name']}")
+                message = f"Bonjour, je suis intéressé par votre produit : {item['title']} (Aérien : {item['air_price']:,.0f} FCFA / Maritime : {item['sea_price']:,.0f} FCFA)."
+                phone = normalize_whatsapp_phone(item['whatsapp'])
+                st.markdown(f"[💬 Contacter le vendeur sur WhatsApp](https://wa.me/{phone}?text={urllib.parse.quote(message)})")
+    conn.close()
+
+elif choice == "🏪 Espace Vendeur" and st.session_state.user and st.session_state.user['role'] == 'seller':
+    st.header("🏪 Espace Vendeur — publier et gérer vos produits")
+    seller_id = st.session_state.user['id']
+    st.markdown("Ajoutez vos produits, leurs détails et deux tarifs distincts. Les offres publiées sont visibles et recherchables dans **Produits vendeurs**.")
+    with st.form("seller_product_form", clear_on_submit=True):
+        title = st.text_input("Nom du produit *")
+        desc = st.text_area("Description")
+        chars = st.text_area("Caractéristiques (matière, dimensions, modèle, couleur, garantie, etc.) *")
+        a, b = st.columns(2)
+        air_price = a.number_input("Prix groupage aérien (FCFA) *", min_value=0, step=500)
+        sea_price = b.number_input("Prix groupage maritime (FCFA) *", min_value=0, step=500)
+        uploaded = st.file_uploader("Image du produit (PNG/JPG)", type=["png", "jpg", "jpeg"])
+        publish = st.form_submit_button("📤 Publier le produit", use_container_width=True)
+        if publish:
+            if not title.strip() or not chars.strip() or (air_price <= 0 and sea_price <= 0):
+                st.error("Renseignez le nom, les caractéristiques et au moins un prix de transport.")
+            else:
+                image_bytes = None
+                if uploaded:
+                    try:
+                        from PIL import Image
+                        import io
+                        img = Image.open(uploaded).convert("RGB")
+                        target_ratio = 4/3
+                        w, h = img.size
+                        if w/h > target_ratio:
+                            new_w = int(h*target_ratio); left=(w-new_w)//2
+                            img=img.crop((left,0,left+new_w,h))
+                        else:
+                            new_h = int(w/target_ratio); top=(h-new_h)//2
+                            img=img.crop((0,top,w,top+new_h))
+                        img=img.resize((800,600))
+                        buf=io.BytesIO(); img.save(buf, format="JPEG", quality=88)
+                        image_bytes=buf.getvalue()
+                    except Exception as image_error:
+                        st.error(f"Impossible de traiter l’image : {image_error}")
+                if not uploaded or image_bytes:
+                    conn=get_connection()
+                    conn.execute("INSERT INTO seller_products (seller_id,title,description,characteristics,air_price,sea_price,image_data,available,created_at) VALUES (?,?,?,?,?,?,?,1,?)",
+                                 (seller_id,title.strip(),desc.strip(),chars.strip(),air_price,sea_price,image_bytes,datetime.now().strftime("%Y-%m-%d %H:%M")))
+                    conn.commit(); conn.close()
+                    st.success("Produit publié et disponible dans la recherche publique !")
+                    st.rerun()
+    st.subheader("Mes produits publiés")
+    conn=get_connection()
+    own=conn.execute("SELECT * FROM seller_products WHERE seller_id=? ORDER BY id DESC",(seller_id,)).fetchall()
+    for prod in own:
+        with st.container(border=True):
+            cols=st.columns([3,1,1])
+            cols[0].write(f"**{prod['title']}** — Aérien : {prod['air_price']:,.0f} FCFA · Maritime : {prod['sea_price']:,.0f} FCFA")
+            cols[1].caption("Publié" if prod['available'] else "Masqué")
+            if cols[1].button("Masquer" if prod['available'] else "Publier",key=f"seller_toggle_{prod['id']}"):
+                conn.execute("UPDATE seller_products SET available=? WHERE id=? AND seller_id=?",(0 if prod['available'] else 1,prod['id'],seller_id)); conn.commit(); st.rerun()
+            if cols[2].button("Supprimer",key=f"seller_delete_{prod['id']}"):
+                conn.execute("DELETE FROM seller_products WHERE id=? AND seller_id=?",(prod['id'],seller_id)); conn.commit(); st.rerun()
+            if prod['image_data']:
+                st.image(prod['image_data'],width=220)
+    conn.close()
+
 elif choice == "📝 Soumettre un produit":
     st.header("📝 Proposer / Commander un produit")
     if not st.session_state.user:
@@ -764,6 +874,7 @@ elif choice == "🔐 Connexion / Inscription":
     with t2:
         with st.form("reg_f"):
             name = st.text_input("Prénom et nom *")
+            account_role = st.selectbox("Type de compte", ["Client", "Vendeur"], help="Un vendeur peut publier ses produits dans la marketplace.")
             phone = st.text_input("Numéro WhatsApp *")
             city = st.selectbox("Ville / région *", ["Saint-Louis", "Dakar", "Thiès", "Touba / Diourbel", "Kaolack", "Ziguinchor", "Louga", "Autres régions"])
             addr = st.text_input("Adresse de livraison (facultatif)")
@@ -779,8 +890,8 @@ elif choice == "🔐 Connexion / Inscription":
                     conn = get_connection()
                     try:
                         conn.execute('''INSERT INTO users (role, full_name, whatsapp, city, address, email, company, password_hash, status, created_at)
-                                        VALUES ('client', ?, ?, ?, ?, ?, ?, ?, 'actif', ?)''',
-                                     (name.strip(), phone.strip(), city, addr, email, comp, hash_password(p1), datetime.now().strftime("%Y-%m-%d %H:%M")))
+                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?)''',
+                                     ('seller' if account_role == 'Vendeur' else 'client', name.strip(), phone.strip(), city, addr, email, comp, hash_password(p1), datetime.now().strftime("%Y-%m-%d %H:%M")))
                         conn.commit()
                         st.success("Compte créé ! Connectez-vous dans l'onglet Connexion.")
                     except Exception:
