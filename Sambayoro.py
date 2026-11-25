@@ -501,10 +501,6 @@ div[data-testid="stMetric"]:after { content:""; position:absolute; top:0; left:0
 [data-testid="stAlert"] { box-shadow:0 8px 20px rgba(0,0,0,.16); }
 [data-testid="stDataFrame"] { background:#0D1914; border:1px solid rgba(167,243,208,.18) !important; }
 .sf-footer { border-color:rgba(246,211,101,.28) !important; }
-/* Uniform groupage image cards: consistent height, width and crop */
-[class*="st-key-groupage-type-"] [data-testid="stImage"] img { width:100% !important; height:230px !important; object-fit:cover !important; object-position:center !important; border-radius:12px !important; display:block !important; }
-[class*="st-key-groupage-type-"] [data-testid="stImage"] { width:100% !important; }
-@media (max-width:640px) { [class*="st-key-groupage-type-"] [data-testid="stImage"] img { height:190px !important; } }
 .sf-feature { backdrop-filter:blur(8px); }
 @media (prefers-reduced-motion: reduce) { *,*:before,*:after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
 @media (max-width:640px) { .main-header:before { font-size:.62rem; letter-spacing:.12em; } .card:hover { transform:none; } }
@@ -728,7 +724,7 @@ elif choice == "📦 Groupage":
         cols = st.columns(2)
         for col, info in zip(cols, groupage_types[idx:idx+2]):
             with col:
-                with st.container(border=True, key=f"groupage-type-{idx}"):
+                with st.container(border=True):
                     st.image(info["image"], use_container_width=True)
                     st.subheader(f"{info['emoji']} {info['title']}")
                     st.markdown(f"**Tarif :** {info['rate']}  \n**Délai indicatif :** {info['delay']}")
