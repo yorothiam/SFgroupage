@@ -163,6 +163,12 @@ def init_db():
     batch_columns = [row[1] for row in c.execute("PRAGMA table_info(batches)").fetchall()]
     if "seller_id" not in batch_columns:
         c.execute("ALTER TABLE batches ADD COLUMN seller_id INTEGER")
+    if "tariff" not in batch_columns:
+        c.execute("ALTER TABLE batches ADD COLUMN tariff REAL DEFAULT 0")
+    if "tariff_unit" not in batch_columns:
+        c.execute("ALTER TABLE batches ADD COLUMN tariff_unit TEXT DEFAULT ''")
+    if "duration" not in batch_columns:
+        c.execute("ALTER TABLE batches ADD COLUMN duration TEXT DEFAULT ''")
 
     c.execute('''CREATE TABLE IF NOT EXISTS groupage_registrations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -629,25 +635,34 @@ def render_product_card(prod, conn):
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_batch_registration(batch, conn):
-    """Affiche les détails du groupage et un formulaire d'inscription client."""
+    """Détails d'un groupage et inscription client authentifié."""
     with st.container(border=True):
         st.subheader(f"📦 {batch['code']} — {batch['mode']}")
+        tariff = batch['tariff'] if 'tariff' in batch.keys() else 0
+        unit = batch['tariff_unit'] if 'tariff_unit' in batch.keys() else ''
+        duration = batch['duration'] if 'duration' in batch.keys() else ''
+        if tariff:
+            st.markdown(f"### 💰 {tariff:,.0f} FCFA / {unit}")
+        if duration:
+            st.caption(f"⏱️ Délai indicatif : {duration}")
         st.write(f"**Clôture :** {batch['close_date']} · **Départ estimé :** {batch['est_departure']} · **Arrivée estimée :** {batch['est_arrival']}")
         if batch['instructions']:
             st.write(batch['instructions'])
         registered = conn.execute("SELECT COUNT(*) FROM groupage_registrations WHERE batch_id=?", (batch['id'],)).fetchone()[0]
         st.caption(f"{registered} inscription(s) reçue(s)")
-        if not st.session_state.user or st.session_state.user.get('role') != 'client':
-            st.info("Pour vous inscrire, créez un compte client ou connectez-vous.")
+        if batch['status'] != 'Ouvert':
+            st.warning("Les inscriptions à ce groupage sont fermées.")
+        elif not st.session_state.user or st.session_state.user.get('role') != 'client':
+            st.info("Créez un compte client ou connectez-vous pour vous inscrire.")
         else:
             client_id = st.session_state.user['id']
             prior = conn.execute("SELECT id FROM groupage_registrations WHERE batch_id=? AND client_id=?", (batch['id'],client_id)).fetchone()
             with st.form(f"join_batch_{batch['id']}"):
-                product = st.text_input("Produit que vous souhaitez commander *", key=f"batch_prod_{batch['id']}")
-                qty = st.number_input("Quantité souhaitée *", min_value=1, value=1, step=1, key=f"batch_qty_{batch['id']}")
-                details = st.text_area("Caractéristiques / variantes (couleur, taille, modèle...)", key=f"batch_details_{batch['id']}")
-                link = st.text_input("Lien du produit (facultatif)", key=f"batch_link_{batch['id']}")
-                submit = st.form_submit_button("🙋 S'inscrire à ce groupage", use_container_width=True)
+                product = st.text_input("Produit souhaité *", placeholder="Nom / référence du produit")
+                qty = st.number_input("Quantité souhaitée *", min_value=1, value=1, step=1)
+                details = st.text_area("Caractéristiques / variantes", placeholder="Couleur, taille, modèle, dimensions…")
+                link = st.text_input("Lien du produit (facultatif)", placeholder="Lien Alibaba, 1688, Taobao…")
+                submit = st.form_submit_button("🙋 M'inscrire à ce groupage", use_container_width=True)
                 if submit:
                     if not product.strip():
                         st.error("Indiquez le produit souhaité.")
@@ -694,11 +709,11 @@ if choice in ["🏠 Accueil", "🏠 Accueil Vitrine", "🏠 Aperçu Site Public"
     conn.close()
 
 elif choice == "✈️ Groupage Aérien":
-    st.header("✈️ Groupage Aérien")
+    st.header("✈️ Groupages express, frette et aérien")
     st.info(f"**Délai indicatif :** {get_setting('air_delay')}")
     st.success(f"**Tarifs & Transport :** {get_setting('air_rate_info')}")
     conn = get_connection()
-    batches = conn.execute("SELECT * FROM batches WHERE mode='Aerien' AND status='Ouvert'").fetchall()
+    batches = conn.execute("SELECT * FROM batches WHERE status='Ouvert' AND mode IN ('Express 7 jours','Groupage par frette 15 jours','Groupage aérien')").fetchall()
     for b in batches:
         render_batch_registration(b, conn)
     for p in conn.execute("SELECT * FROM products WHERE available=1 AND mode='Aerien'").fetchall():
@@ -706,11 +721,11 @@ elif choice == "✈️ Groupage Aérien":
     conn.close()
 
 elif choice == "🚢 Groupage Maritime":
-    st.header("🚢 Groupage Maritime")
+    st.header("🚢 Groupage maritime CBM")
     st.info(f"**Délai indicatif :** {get_setting('sea_delay')}")
     st.warning(f"**Modalités & Tarification :** {get_setting('sea_rate_info')}")
     conn = get_connection()
-    batches = conn.execute("SELECT * FROM batches WHERE mode='Maritime' AND status='Ouvert'").fetchall()
+    batches = conn.execute("SELECT * FROM batches WHERE status='Ouvert' AND mode='Groupage maritime CBM'").fetchall()
     for b in batches:
         render_batch_registration(b, conn)
     for p in conn.execute("SELECT * FROM products WHERE available=1 AND mode='Maritime'").fetchall():
@@ -774,7 +789,16 @@ elif choice == "🏪 Espace Vendeur" and st.session_state.user and st.session_st
     st.markdown("### 🚢 Ouvrir un nouveau groupage")
     with st.form("seller_open_batch", clear_on_submit=True):
         batch_code = st.text_input("Nom / code du groupage *", placeholder="Ex. GROUPAGE-DECEMBRE-01")
-        batch_mode = st.selectbox("Type de groupage", ["Aerien", "Maritime"])
+        batch_mode = st.selectbox("Type de groupage", ["Express 7 jours", "Groupage par frette 15 jours", "Groupage maritime CBM", "Groupage aérien"])
+        fixed_tariffs = {"Express 7 jours": (14000, "kg", "7 jours"), "Groupage par frette 15 jours": (9000, "kg", "15 jours"), "Groupage maritime CBM": (190000, "CBM", "Délai maritime estimatif")}
+        if batch_mode in fixed_tariffs:
+            fixed_rate, tariff_unit, duration = fixed_tariffs[batch_mode]
+            st.info(f"Tarif fixé : **{fixed_rate:,.0f} FCFA / {tariff_unit}** · Délai : **{duration}**")
+            tariff = float(fixed_rate)
+        else:
+            tariff_unit = st.selectbox("Unité de facturation aérien", ["kg", "unité", "forfait"])
+            tariff = st.number_input("Tarif aérien (FCFA / unité choisie)", min_value=0, step=500)
+            duration = st.text_input("Délai indicatif", value="7 à 15 jours")
         b1, b2 = st.columns(2)
         batch_open = b1.date_input("Date d'ouverture")
         batch_close = b2.date_input("Date limite d'inscription")
@@ -789,7 +813,7 @@ elif choice == "🏪 Espace Vendeur" and st.session_state.user and st.session_st
             else:
                 try:
                     conn=get_connection()
-                    conn.execute("INSERT INTO batches (code,mode,open_date,close_date,est_departure,est_arrival,instructions,status,seller_id) VALUES (?,?,?,?,?,?,?,'Ouvert',?)", (batch_code.strip(),batch_mode,str(batch_open),str(batch_close),str(batch_depart),str(batch_arrival),batch_instructions.strip(),seller_id))
+                    conn.execute("INSERT INTO batches (code,mode,open_date,close_date,est_departure,est_arrival,instructions,status,seller_id,tariff,tariff_unit,duration) VALUES (?,?,?,?,?,?,?,'Ouvert',?,?,?,?)", (batch_code.strip(),batch_mode,str(batch_open),str(batch_close),str(batch_depart),str(batch_arrival),batch_instructions.strip(),seller_id,tariff,tariff_unit,duration))
                     conn.commit(); conn.close()
                     st.success("Groupage ouvert ! Les clients connectés peuvent maintenant s'inscrire avec leur produit et la quantité souhaitée.")
                     st.rerun()
