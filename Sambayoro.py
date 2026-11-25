@@ -501,10 +501,8 @@ div[data-testid="stMetric"]:after { content:""; position:absolute; top:0; left:0
 [data-testid="stAlert"] { box-shadow:0 8px 20px rgba(0,0,0,.16); }
 [data-testid="stDataFrame"] { background:#0D1914; border:1px solid rgba(167,243,208,.18) !important; }
 .sf-footer { border-color:rgba(246,211,101,.28) !important; }
-/* Uniform groupage image cards: consistent height, width and crop */
-[class*="st-key-groupage-type-"] [data-testid="stImage"] img { width:100% !important; height:230px !important; object-fit:cover !important; object-position:center !important; border-radius:12px !important; display:block !important; }
-[class*="st-key-groupage-type-"] [data-testid="stImage"] { width:100% !important; }
-@media (max-width:640px) { [class*="st-key-groupage-type-"] [data-testid="stImage"] img { height:190px !important; } }
+/* Uniform groupage images: same fixed crop and rounded frame */
+@media (max-width:640px) { .groupage-image-frame { height:190px !important; } .groupage-image-frame img { height:190px !important; } }
 .sf-feature { backdrop-filter:blur(8px); }
 @media (prefers-reduced-motion: reduce) { *,*:before,*:after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
 @media (max-width:640px) { .main-header:before { font-size:.62rem; letter-spacing:.12em; } .card:hover { transform:none; } }
@@ -722,14 +720,18 @@ elif choice == "📦 Groupage":
         {"mode":"Groupage aérien", "title":"Groupage Aérien", "emoji":"✈️", "rate":"Tarif défini par le vendeur", "delay":"Délai communiqué à l'ouverture", "image":"https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=900&q=80", "desc":"Une formule aérienne avec prix et délai précisés par le vendeur."},
     ]
     conn = get_connection()
-    for row in st.columns(2):
-        pass
     for idx in range(0, len(groupage_types), 2):
         cols = st.columns(2)
         for col, info in zip(cols, groupage_types[idx:idx+2]):
             with col:
                 with st.container(border=True, key=f"groupage-type-{idx}"):
-                    st.image(info["image"], use_container_width=True)
+                    st.markdown(
+                        f'<div class="groupage-image-frame" style="width:100%;height:230px;overflow:hidden;border-radius:12px;margin-bottom:12px;">'
+                        f'<img src="{info["image"]}" alt="{info["title"]}" '
+                        'style="width:100%;height:230px;object-fit:cover;object-position:center;display:block;">'
+                        '</div>',
+                        unsafe_allow_html=True,
+                    )
                     st.subheader(f"{info['emoji']} {info['title']}")
                     st.markdown(f"**Tarif :** {info['rate']}  \n**Délai indicatif :** {info['delay']}")
                     st.caption(info["desc"])
