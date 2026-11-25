@@ -535,11 +535,11 @@ if banner:
 # NAVIGATION PRINCIPALE — BARRE EN HAUT
 # ==========================================
 if not st.session_state.user:
-    menu = ["🏠 Accueil", "✈️ Groupage Aérien", "🚢 Groupage Maritime", "🛍️ Catalogue à valider", "🛒 Produits vendeurs",
+    menu = ["🏠 Accueil", "📦 Groupage", "🛍️ Catalogue à valider", "🛒 Produits vendeurs",
             "📝 Soumettre un produit", "💰 Tarifs & Calculateur", "ℹ️ Comment ça marche & FAQ", "📞 Contact & CGU", "🔐 Connexion / Inscription"]
 elif st.session_state.user['role'] == 'client':
-    menu = ["📊 Mon Tableau de Bord", "📝 Soumettre un produit", "🛍️ Catalogue à valider", "🛒 Produits vendeurs", "✈️ Groupage Aérien",
-            "🚢 Groupage Maritime", "💰 Tarifs & Calculateur", "📦 Mes Demandes & Commandes", "💳 Mes Paiements & Reçus",
+    menu = ["📊 Mon Tableau de Bord", "📝 Soumettre un produit", "🛍️ Catalogue à valider", "🛒 Produits vendeurs", "📦 Groupage",
+            "💰 Tarifs & Calculateur", "📦 Mes Demandes & Commandes", "💳 Mes Paiements & Reçus",
             "🚚 Suivi de mes Colis", "🔔 Notifications & Profil", "🏠 Accueil Vitrine", "📞 Contact & CGU"]
 elif st.session_state.user['role'] == 'seller':
     menu = ["🏪 Espace Vendeur", "🚢 Mes Groupages", "🛒 Produits vendeurs", "🏠 Accueil Vitrine"]
@@ -708,28 +708,34 @@ if choice in ["🏠 Accueil", "🏠 Accueil Vitrine", "🏠 Aperçu Site Public"
         render_product_card(p, conn)
     conn.close()
 
-elif choice == "✈️ Groupage Aérien":
-    st.header("✈️ Groupages express, frette et aérien")
-    st.info(f"**Délai indicatif :** {get_setting('air_delay')}")
-    st.success(f"**Tarifs & Transport :** {get_setting('air_rate_info')}")
+elif choice == "📦 Groupage":
+    st.header("📦 Nos 4 types de groupages")
+    st.write("Choisissez la formule adaptée à votre marchandise. Les groupages ouverts sont accessibles à l'inscription des clients connectés.")
+    groupage_types = [
+        {"mode":"Express 7 jours", "title":"Groupage Express", "emoji":"⚡", "rate":"14 000 FCFA / kg", "delay":"7 jours", "image":"https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=900&q=80", "desc":"Transport rapide pour les marchandises urgentes."},
+        {"mode":"Groupage par frette 15 jours", "title":"Groupage par frette", "emoji":"📦", "rate":"9 000 FCFA / kg", "delay":"15 jours", "image":"https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=900&q=80", "desc":"Une formule économique pour vos produits au kilo."},
+        {"mode":"Groupage maritime CBM", "title":"Groupage Maritime", "emoji":"🚢", "rate":"190 000 FCFA / CBM", "delay":"Délai selon départ", "image":"https://images.unsplash.com/photo-1494412516000-8d5e9b9a2a9a?auto=format&fit=crop&w=900&q=80", "desc":"Idéal pour les volumes et marchandises plus importantes."},
+        {"mode":"Groupage aérien", "title":"Groupage Aérien", "emoji":"✈️", "rate":"Tarif défini par le vendeur", "delay":"Délai communiqué à l'ouverture", "image":"https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=900&q=80", "desc":"Une formule aérienne avec prix et délai précisés par le vendeur."},
+    ]
     conn = get_connection()
-    batches = conn.execute("SELECT * FROM batches WHERE status='Ouvert' AND mode IN ('Express 7 jours','Groupage par frette 15 jours','Groupage aérien')").fetchall()
-    for b in batches:
-        render_batch_registration(b, conn)
-    for p in conn.execute("SELECT * FROM products WHERE available=1 AND mode='Aerien'").fetchall():
-        render_product_card(p, conn)
-    conn.close()
-
-elif choice == "🚢 Groupage Maritime":
-    st.header("🚢 Groupage maritime CBM")
-    st.info(f"**Délai indicatif :** {get_setting('sea_delay')}")
-    st.warning(f"**Modalités & Tarification :** {get_setting('sea_rate_info')}")
-    conn = get_connection()
-    batches = conn.execute("SELECT * FROM batches WHERE status='Ouvert' AND mode='Groupage maritime CBM'").fetchall()
-    for b in batches:
-        render_batch_registration(b, conn)
-    for p in conn.execute("SELECT * FROM products WHERE available=1 AND mode='Maritime'").fetchall():
-        render_product_card(p, conn)
+    for row in st.columns(2):
+        pass
+    for idx in range(0, len(groupage_types), 2):
+        cols = st.columns(2)
+        for col, info in zip(cols, groupage_types[idx:idx+2]):
+            with col:
+                with st.container(border=True):
+                    st.image(info["image"], use_container_width=True)
+                    st.subheader(f"{info['emoji']} {info['title']}")
+                    st.markdown(f"**Tarif :** {info['rate']}  \n**Délai indicatif :** {info['delay']}")
+                    st.caption(info["desc"])
+                    open_batches = conn.execute("SELECT * FROM batches WHERE status='Ouvert' AND mode=? ORDER BY id DESC", (info["mode"],)).fetchall()
+                    if open_batches:
+                        st.success(f"{len(open_batches)} groupage(s) actuellement ouvert(s)")
+                        for batch in open_batches:
+                            render_batch_registration(batch, conn)
+                    else:
+                        st.info("Aucun groupage ouvert actuellement. Revenez consulter cette formule prochainement.")
     conn.close()
 
 elif choice == "🛍️ Catalogue à valider":
