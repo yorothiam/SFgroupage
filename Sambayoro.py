@@ -160,6 +160,22 @@ def init_db():
         instructions TEXT,
         status TEXT DEFAULT 'Ouvert'
     )''')
+    batch_columns = [row[1] for row in c.execute("PRAGMA table_info(batches)").fetchall()]
+    if "seller_id" not in batch_columns:
+        c.execute("ALTER TABLE batches ADD COLUMN seller_id INTEGER")
+
+    c.execute('''CREATE TABLE IF NOT EXISTS groupage_registrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ref TEXT UNIQUE,
+        batch_id INTEGER NOT NULL,
+        client_id INTEGER NOT NULL,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        product_details TEXT,
+        link TEXT,
+        status TEXT DEFAULT 'Inscription reçue',
+        created_at TEXT
+    )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -520,7 +536,7 @@ elif st.session_state.user['role'] == 'client':
             "🚢 Groupage Maritime", "💰 Tarifs & Calculateur", "📦 Mes Demandes & Commandes", "💳 Mes Paiements & Reçus",
             "🚚 Suivi de mes Colis", "🔔 Notifications & Profil", "🏠 Accueil Vitrine", "📞 Contact & CGU"]
 elif st.session_state.user['role'] == 'seller':
-    menu = ["🏪 Espace Vendeur", "🛒 Produits vendeurs", "🏠 Accueil Vitrine"]
+    menu = ["🏪 Espace Vendeur", "🚢 Mes Groupages", "🛒 Produits vendeurs", "🏠 Accueil Vitrine"]
 elif st.session_state.user['role'] == 'agent':
     menu = ["📦 Espace Agent Logistique", "🏠 Accueil Vitrine"]
 else:
@@ -612,6 +628,39 @@ def render_product_card(prod, conn):
                             st.success(f"🎉 Commande **{ref}** enregistrée !")
     st.markdown('</div>', unsafe_allow_html=True)
 
+def render_batch_registration(batch, conn):
+    """Affiche les détails du groupage et un formulaire d'inscription client."""
+    with st.container(border=True):
+        st.subheader(f"📦 {batch['code']} — {batch['mode']}")
+        st.write(f"**Clôture :** {batch['close_date']} · **Départ estimé :** {batch['est_departure']} · **Arrivée estimée :** {batch['est_arrival']}")
+        if batch['instructions']:
+            st.write(batch['instructions'])
+        registered = conn.execute("SELECT COUNT(*) FROM groupage_registrations WHERE batch_id=?", (batch['id'],)).fetchone()[0]
+        st.caption(f"{registered} inscription(s) reçue(s)")
+        if not st.session_state.user or st.session_state.user.get('role') != 'client':
+            st.info("Pour vous inscrire, créez un compte client ou connectez-vous.")
+        else:
+            client_id = st.session_state.user['id']
+            prior = conn.execute("SELECT id FROM groupage_registrations WHERE batch_id=? AND client_id=?", (batch['id'],client_id)).fetchone()
+            with st.form(f"join_batch_{batch['id']}"):
+                product = st.text_input("Produit que vous souhaitez commander *", key=f"batch_prod_{batch['id']}")
+                qty = st.number_input("Quantité souhaitée *", min_value=1, value=1, step=1, key=f"batch_qty_{batch['id']}")
+                details = st.text_area("Caractéristiques / variantes (couleur, taille, modèle...)", key=f"batch_details_{batch['id']}")
+                link = st.text_input("Lien du produit (facultatif)", key=f"batch_link_{batch['id']}")
+                submit = st.form_submit_button("🙋 S'inscrire à ce groupage", use_container_width=True)
+                if submit:
+                    if not product.strip():
+                        st.error("Indiquez le produit souhaité.")
+                    elif prior:
+                        st.warning("Vous êtes déjà inscrit à ce groupage. Contactez le vendeur pour modifier votre inscription.")
+                    else:
+                        ref = generate_ref("GRP")
+                        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        conn.execute("INSERT INTO groupage_registrations (ref,batch_id,client_id,product_name,quantity,product_details,link,created_at) VALUES (?,?,?,?,?,?,?,?)", (ref,batch['id'],client_id,product.strip(),int(qty),details.strip(),link.strip(),now))
+                        conn.commit()
+                        st.success(f"Inscription enregistrée ! Référence : {ref}")
+                        st.rerun()
+
 # ==========================================
 # PAGES PUBLIQUES
 # ==========================================
@@ -651,7 +700,7 @@ elif choice == "✈️ Groupage Aérien":
     conn = get_connection()
     batches = conn.execute("SELECT * FROM batches WHERE mode='Aerien' AND status='Ouvert'").fetchall()
     for b in batches:
-        st.write(f"- Vague **{b['code']}** | Clôture : **{b['close_date']}** | Arrivée estimée : {b['est_arrival']} | {b['instructions']}")
+        render_batch_registration(b, conn)
     for p in conn.execute("SELECT * FROM products WHERE available=1 AND mode='Aerien'").fetchall():
         render_product_card(p, conn)
     conn.close()
@@ -663,7 +712,7 @@ elif choice == "🚢 Groupage Maritime":
     conn = get_connection()
     batches = conn.execute("SELECT * FROM batches WHERE mode='Maritime' AND status='Ouvert'").fetchall()
     for b in batches:
-        st.write(f"- Vague **{b['code']}** | Clôture : **{b['close_date']}** | Arrivée estimée : {b['est_arrival']} | {b['instructions']}")
+        render_batch_registration(b, conn)
     for p in conn.execute("SELECT * FROM products WHERE available=1 AND mode='Maritime'").fetchall():
         render_product_card(p, conn)
     conn.close()
@@ -676,6 +725,12 @@ elif choice == "🛍️ Catalogue à valider":
     for p in conn.execute(q).fetchall():
         render_product_card(p, conn)
     conn.close()
+
+elif choice == "🚢 Mes Groupages" and st.session_state.user and st.session_state.user['role'] == 'seller':
+    st.header("🚢 Mes groupages")
+    st.info("Ouvrez et gérez vos groupages depuis l'espace vendeur.")
+    st.session_state["next_navigation"] = "🏪 Espace Vendeur"
+    st.rerun()
 
 elif choice == "🛒 Produits vendeurs":
     st.header("🛒 Marketplace — produits partagés par les vendeurs")
@@ -716,6 +771,49 @@ elif choice == "🏪 Espace Vendeur" and st.session_state.user and st.session_st
     st.header("🏪 Espace Vendeur — publier et gérer vos produits")
     seller_id = st.session_state.user['id']
     st.markdown("Ajoutez vos produits, leurs détails et deux tarifs distincts. Les offres publiées sont visibles et recherchables dans **Produits vendeurs**.")
+    st.markdown("### 🚢 Ouvrir un nouveau groupage")
+    with st.form("seller_open_batch", clear_on_submit=True):
+        batch_code = st.text_input("Nom / code du groupage *", placeholder="Ex. GROUPAGE-DECEMBRE-01")
+        batch_mode = st.selectbox("Type de groupage", ["Aerien", "Maritime"])
+        b1, b2 = st.columns(2)
+        batch_open = b1.date_input("Date d'ouverture")
+        batch_close = b2.date_input("Date limite d'inscription")
+        b3, b4 = st.columns(2)
+        batch_depart = b3.date_input("Départ estimé")
+        batch_arrival = b4.date_input("Arrivée estimée")
+        batch_instructions = st.text_area("Conditions / instructions (prix, poids, volume, modalités)")
+        open_batch = st.form_submit_button("🚀 Ouvrir le groupage", use_container_width=True)
+        if open_batch:
+            if not batch_code.strip():
+                st.error("Donnez un nom ou code à ce groupage.")
+            else:
+                try:
+                    conn=get_connection()
+                    conn.execute("INSERT INTO batches (code,mode,open_date,close_date,est_departure,est_arrival,instructions,status,seller_id) VALUES (?,?,?,?,?,?,?,'Ouvert',?)", (batch_code.strip(),batch_mode,str(batch_open),str(batch_close),str(batch_depart),str(batch_arrival),batch_instructions.strip(),seller_id))
+                    conn.commit(); conn.close()
+                    st.success("Groupage ouvert ! Les clients connectés peuvent maintenant s'inscrire avec leur produit et la quantité souhaitée.")
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error("Ce code de groupage existe déjà. Choisissez un autre code.")
+    st.subheader("Mes groupages ouverts et inscriptions")
+    conn=get_connection()
+    seller_batches=conn.execute("SELECT * FROM batches WHERE seller_id=? ORDER BY id DESC",(seller_id,)).fetchall()
+    for batch in seller_batches:
+        with st.expander(f"{batch['code']} · {batch['mode']} · {batch['status']}"):
+            st.write(f"Clôture : {batch['close_date']} | Départ : {batch['est_departure']} | Arrivée : {batch['est_arrival']}")
+            regs=conn.execute("SELECT gr.*,u.full_name,u.whatsapp,u.city FROM groupage_registrations gr JOIN users u ON u.id=gr.client_id WHERE gr.batch_id=? ORDER BY gr.id DESC",(batch['id'],)).fetchall()
+            st.write(f"**{len(regs)} inscription(s)**")
+            for reg in regs:
+                st.markdown(f"""**{reg['ref']} — {reg['full_name']}** ({reg['city']}, {reg['whatsapp']})
+
+Produit : {reg['product_name']} · Quantité : **{reg['quantity']}**
+
+Détails : {reg['product_details'] or '—'}
+
+Lien : {reg['link'] or '—'}""")
+            if batch['status']=='Ouvert' and st.button("🔒 Fermer les inscriptions",key=f"close_batch_seller_{batch['id']}"):
+                conn.execute("UPDATE batches SET status='Fermé' WHERE id=? AND seller_id=?",(batch['id'],seller_id)); conn.commit(); st.rerun()
+    conn.close()
     with st.form("seller_product_form", clear_on_submit=True):
         title = st.text_input("Nom du produit *")
         desc = st.text_area("Description")
