@@ -504,6 +504,32 @@ div[data-testid="stMetric"]:after { content:""; position:absolute; top:0; left:0
 .sf-feature { backdrop-filter:blur(8px); }
 @media (prefers-reduced-motion: reduce) { *,*:before,*:after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
 @media (max-width:640px) { .main-header:before { font-size:.62rem; letter-spacing:.12em; } .card:hover { transform:none; } }
+
+/* IMAGES GROUPAGE — FORMAT UNIFORME */
+.groupage-image-wrap {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 16px;
+    margin: 0 0 1rem 0;
+    background: #10231B;
+    border: 1px solid rgba(167,243,208,.16);
+}
+.groupage-image-wrap img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+@media (max-width: 640px) {
+    .groupage-image-wrap {
+        aspect-ratio: 16 / 9;
+        border-radius: 12px;
+        margin-bottom: .8rem;
+    }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -725,7 +751,12 @@ elif choice == "📦 Groupage":
         for col, info in zip(cols, groupage_types[idx:idx+2]):
             with col:
                 with st.container(border=True):
-                    st.image(info["image"], use_container_width=True)
+                    st.markdown(
+                        f'<div class="groupage-image-wrap">'
+                        f'<img src="{info["image"]}" alt="{info["title"]}">'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
                     st.subheader(f"{info['emoji']} {info['title']}")
                     st.markdown(f"**Tarif :** {info['rate']}  \n**Délai indicatif :** {info['delay']}")
                     st.caption(info["desc"])
@@ -1478,4 +1509,5 @@ st.markdown(f"""
     <p style="font-size:.82rem;opacity:.85;">Qualité · Confiance · Transparence · Satisfaction</p>
 </div>
 """, unsafe_allow_html=True)
+
 
