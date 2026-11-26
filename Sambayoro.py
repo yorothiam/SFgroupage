@@ -740,14 +740,27 @@ if choice in ["🏠 Accueil", "🏠 Accueil Vitrine", "🏠 Aperçu Site Public"
 
 elif choice == "📦 Groupage":
     st.header("📦 Nos 4 types de groupages")
-    st.write("Choisissez la formule adaptée à votre marchandise. Les groupages ouverts sont accessibles à l'inscription des clients connectés.")
+    st.write("Choisissez la formule adaptée à votre marchandise. Tous les groupages ouverts sont affichés dès votre arrivée dans cette section.")
+    conn = get_connection()
+
+    # Afficher tous les groupages ouverts en un seul endroit, indépendamment
+    # du type choisi ou d'une éventuelle différence d'écriture dans le mode.
+    open_batches = conn.execute("SELECT * FROM batches WHERE LOWER(TRIM(status))='ouvert' ORDER BY id DESC").fetchall()
+    st.markdown("## 🚀 Groupages actuellement ouverts")
+    if open_batches:
+        st.success(f"{len(open_batches)} groupage(s) ouvert(s) — inscriptions disponibles")
+        for batch in open_batches:
+            render_batch_registration(batch, conn)
+    else:
+        st.info("Aucun groupage ouvert pour le moment. Les nouveaux groupages apparaîtront ici dès leur ouverture.")
+
+    st.markdown("## Choisissez votre formule de transport")
     groupage_types = [
         {"mode":"Express 7 jours", "title":"Groupage Express", "emoji":"⚡", "rate":"14 000 FCFA / kg", "delay":"7 jours", "image":"https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=900&q=80", "desc":"Transport rapide pour les marchandises urgentes."},
         {"mode":"Groupage par frette 15 jours", "title":"Groupage par frette", "emoji":"📦", "rate":"9 000 FCFA / kg", "delay":"15 jours", "image":"https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=900&q=80", "desc":"Une formule économique pour vos produits au kilo."},
         {"mode":"Groupage maritime CBM", "title":"Groupage Maritime", "emoji":"🚢", "rate":"190 000 FCFA / CBM", "delay":"Délai selon départ", "image":"https://images.unsplash.com/photo-1494412516000-8d5e9b9a2a9a?auto=format&fit=crop&w=900&q=80", "desc":"Idéal pour les volumes et marchandises plus importantes."},
         {"mode":"Groupage aérien", "title":"Groupage Aérien", "emoji":"✈️", "rate":"Tarif défini par le vendeur", "delay":"Délai communiqué à l'ouverture", "image":"https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=900&q=80", "desc":"Une formule aérienne avec prix et délai précisés par le vendeur."},
     ]
-    conn = get_connection()
     for row in st.columns(2):
         pass
     for idx in range(0, len(groupage_types), 2):
@@ -764,13 +777,11 @@ elif choice == "📦 Groupage":
                     st.subheader(f"{info['emoji']} {info['title']}")
                     st.markdown(f"**Tarif :** {info['rate']}  \n**Délai indicatif :** {info['delay']}")
                     st.caption(info["desc"])
-                    open_batches = conn.execute("SELECT * FROM batches WHERE status='Ouvert' AND mode=? ORDER BY id DESC", (info["mode"],)).fetchall()
-                    if open_batches:
-                        st.success(f"{len(open_batches)} groupage(s) actuellement ouvert(s)")
-                        for batch in open_batches:
-                            render_batch_registration(batch, conn)
+                    matching_batches = [b for b in open_batches if (b['mode'] or '').strip().lower() == info['mode'].strip().lower()]
+                    if matching_batches:
+                        st.caption(f"{len(matching_batches)} groupage(s) ouvert(s) de cette formule — affichés dans la liste au-dessus.")
                     else:
-                        st.info("Aucun groupage ouvert actuellement. Revenez consulter cette formule prochainement.")
+                        st.caption("Aucun groupage ouvert de cette formule pour l'instant.")
     conn.close()
 
 elif choice == "🛍️ Catalogue à valider":
