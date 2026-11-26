@@ -758,7 +758,7 @@ elif choice == "📦 Groupage":
     groupage_types = [
         {"mode":"Express 7 jours", "title":"Groupage Express", "emoji":"⚡", "rate":"14 000 FCFA / kg", "delay":"7 jours", "image":"https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?auto=format&fit=crop&w=900&q=80", "desc":"Transport rapide pour les marchandises urgentes."},
         {"mode":"Groupage par frette 15 jours", "title":"Groupage par frette", "emoji":"📦", "rate":"9 000 FCFA / kg", "delay":"15 jours", "image":"https://images.unsplash.com/photo-1607082349566-187342175e2f?auto=format&fit=crop&w=900&q=80", "desc":"Une formule économique pour vos produits au kilo."},
-        {"mode":"Groupage maritime CBM", "title":"Groupage Maritime", "emoji":"🚢", "rate":"190 000 FCFA / CBM", "delay":"Délai selon départ", "image":"https://images.unsplash.com/photo-1494412516000-8d5e9b9a2a9a?auto=format&fit=crop&w=900&q=80", "desc":"Idéal pour les volumes et marchandises plus importantes."},
+        {"mode":"Groupage maritime CBM", "title":"Groupage Maritime", "emoji":"🚢", "rate":"190 000 FCFA / CBM", "delay":"Délai selon départ", "image":"https://images.unsplash.com/photo-1725100609222-86a51bee3c3a?auto=format&fit=crop&fm=jpg&q=80&w=900", "desc":"Idéal pour les volumes et marchandises plus importantes."},
         {"mode":"Groupage aérien", "title":"Groupage Aérien", "emoji":"✈️", "rate":"Tarif défini par le vendeur", "delay":"Délai communiqué à l'ouverture", "image":"https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=900&q=80", "desc":"Une formule aérienne avec prix et délai précisés par le vendeur."},
     ]
     for row in st.columns(2):
