@@ -1338,11 +1338,29 @@ elif st.session_state.user and st.session_state.user['role'] == 'admin':
             ar = c2.date_input("Arrivée estimée")
             ins = st.text_area("Consignes")
             if st.form_submit_button("Créer vague"):
-                conn.execute("INSERT INTO batches (code, mode, open_date, close_date, est_departure, est_arrival, instructions, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Ouvert')",
-                             (cd, md, str(op), str(cl), str(dp), str(ar), ins))
-                conn.commit()
-                st.success("Vague créée !")
-                st.rerun()
+                code_vague = cd.strip()
+                if not code_vague:
+                    st.error("Veuillez saisir un code ou nom de vague.")
+                else:
+                    # Vérifie d'abord si le code existe déjà (la colonne code est UNIQUE).
+                    vague_existante = conn.execute(
+                        "SELECT id FROM batches WHERE LOWER(TRIM(code)) = LOWER(TRIM(?)) LIMIT 1",
+                        (code_vague,)
+                    ).fetchone()
+                    if vague_existante:
+                        st.warning("Ce code de vague existe déjà. Choisissez un code différent.")
+                    else:
+                        try:
+                            conn.execute(
+                                "INSERT INTO batches (code, mode, open_date, close_date, est_departure, est_arrival, instructions, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'Ouvert')",
+                                (code_vague, md, str(op), str(cl), str(dp), str(ar), ins)
+                            )
+                            conn.commit()
+                            st.success("Vague créée avec succès !")
+                            st.rerun()
+                        except sqlite3.IntegrityError:
+                            conn.rollback()
+                            st.error("Impossible de créer cette vague : ce code existe déjà. Veuillez en choisir un autre.")
         for b in conn.execute("SELECT * FROM batches ORDER BY id DESC").fetchall():
             cnt = conn.execute("SELECT COUNT(*) FROM orders WHERE batch_id=?", (b['id'],)).fetchone()[0]
             st.write(f"- **{b['code']}** ({b['mode']}) | Clôture : {b['close_date']} | Arrivée : {b['est_arrival']} | Commandes : **{cnt}**")
