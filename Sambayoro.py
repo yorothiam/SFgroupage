@@ -139,13 +139,16 @@ def init_db():
         company TEXT,
         password_hash TEXT NOT NULL,
         status TEXT DEFAULT 'actif',
-        created_at TEXT
+        created_at TEXT,
+        photo_data BLOB
     )''')
 
     # Migration douce pour les bases déjà existantes
     user_columns = [row[1] for row in c.execute("PRAGMA table_info(users)").fetchall()]
     if "username" not in user_columns:
         c.execute("ALTER TABLE users ADD COLUMN username TEXT")
+    if "photo_data" not in user_columns:
+        c.execute("ALTER TABLE users ADD COLUMN photo_data BLOB")
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL")
 
     c.execute('''CREATE TABLE IF NOT EXISTS settings (
@@ -184,8 +187,14 @@ def init_db():
         product_details TEXT,
         link TEXT,
         status TEXT DEFAULT 'Inscription reçue',
-        created_at TEXT
+        created_at TEXT,
+        product_photo BLOB
     )''')
+
+    # Migration : photo facultative du colis / produit pour les inscriptions groupage.
+    registration_columns = [row[1] for row in c.execute("PRAGMA table_info(groupage_registrations)").fetchall()]
+    if "product_photo" not in registration_columns:
+        c.execute("ALTER TABLE groupage_registrations ADD COLUMN product_photo BLOB")
 
     c.execute('''CREATE TABLE IF NOT EXISTS products (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -692,6 +701,7 @@ def render_batch_registration(batch, conn):
                 qty = st.number_input("Quantité souhaitée *", min_value=1, value=1, step=1)
                 details = st.text_area("Caractéristiques / variantes", placeholder="Couleur, taille, modèle, dimensions…")
                 link = st.text_input("Lien du produit (facultatif)", placeholder="Lien Alibaba, 1688, Taobao…")
+                product_photo = st.file_uploader("📷 Photo du colis / produit (facultatif)", type=["jpg", "jpeg", "png", "webp"], key=f"batch_photo_{batch['id']}")
                 submit = st.form_submit_button("🙋 M'inscrire à ce groupage", use_container_width=True)
                 if submit:
                     if not product.strip():
@@ -701,7 +711,8 @@ def render_batch_registration(batch, conn):
                     else:
                         ref = generate_ref("GRP")
                         now = datetime.now().strftime("%Y-%m-%d %H:%M")
-                        conn.execute("INSERT INTO groupage_registrations (ref,batch_id,client_id,product_name,quantity,product_details,link,created_at) VALUES (?,?,?,?,?,?,?,?)", (ref,batch['id'],client_id,product.strip(),int(qty),details.strip(),link.strip(),now))
+                        photo_bytes = product_photo.getvalue() if product_photo is not None else None
+                        conn.execute("INSERT INTO groupage_registrations (ref,batch_id,client_id,product_name,quantity,product_details,link,created_at,product_photo) VALUES (?,?,?,?,?,?,?,?,?)", (ref,batch['id'],client_id,product.strip(),int(qty),details.strip(),link.strip(),now,photo_bytes))
                         conn.commit()
                         st.success(f"Inscription enregistrée ! Référence : {ref}")
                         st.rerun()
@@ -887,6 +898,8 @@ Produit : {reg['product_name']} · Quantité : **{reg['quantity']}**
 Détails : {reg['product_details'] or '—'}
 
 Lien : {reg['link'] or '—'}""")
+                if reg['product_photo']:
+                    st.image(reg['product_photo'], caption=f"Photo fournie — {reg['product_name']}", width=300)
             if batch['status']=='Ouvert' and st.button("🔒 Fermer les inscriptions",key=f"close_batch_seller_{batch['id']}"):
                 conn.execute("UPDATE batches SET status='Fermé' WHERE id=? AND seller_id=?",(batch['id'],seller_id)); conn.commit(); st.rerun()
     conn.close()
@@ -1070,6 +1083,7 @@ elif choice == "🔐 Connexion / Inscription":
             addr = st.text_input("Adresse de livraison (facultatif)")
             email = st.text_input("E-mail (facultatif)")
             comp = st.text_input("Nom de boutique / entreprise (facultatif)")
+            registration_photo = st.file_uploader("Photo de profil (facultatif)", type=["png", "jpg", "jpeg"], help="Ajoutez une photo pour votre profil. Ce champ n’est pas obligatoire.")
             p1 = st.text_input("Mot de passe *", type=registration_password_type)
             p2 = st.text_input("Confirmation mot de passe *", type=registration_password_type)
             cgu = st.checkbox("J'accepte les conditions de service *")
@@ -1087,9 +1101,10 @@ elif choice == "🔐 Connexion / Inscription":
                             if any(normalize_phone(row['whatsapp']) == phone_normalized for row in existing):
                                 st.error("Ce numéro WhatsApp est déjà associé à un compte. Connectez-vous ou utilisez un autre numéro.")
                             else:
-                                cur = conn.execute("""INSERT INTO users (role, full_name, whatsapp, city, address, email, company, password_hash, status, created_at)
-                                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?)""",
-                                                  ('seller' if account_role == 'Vendeur' else 'client', name.strip(), phone_normalized, city, addr.strip(), email.strip(), comp.strip(), hash_password(p1), datetime.now().strftime("%Y-%m-%d %H:%M")))
+                                photo_bytes = registration_photo.getvalue() if registration_photo else None
+                                cur = conn.execute("""INSERT INTO users (role, full_name, whatsapp, city, address, email, company, password_hash, status, created_at, photo_data)
+                                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?, ?)""",
+                                                  ('seller' if account_role == 'Vendeur' else 'client', name.strip(), phone_normalized, city, addr.strip(), email.strip(), comp.strip(), hash_password(p1), datetime.now().strftime("%Y-%m-%d %H:%M"), photo_bytes))
                                 conn.commit()
                                 new_user = conn.execute("SELECT * FROM users WHERE id=?", (cur.lastrowid,)).fetchone()
                                 if new_user:
