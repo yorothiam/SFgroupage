@@ -1031,6 +1031,8 @@ elif choice == "🔐 Connexion / Inscription":
         with st.expander("Comptes de test"):
             st.write("Administrateur : identifiant `sambafall` | mot de passe `samba2026` (à changer après première connexion).")
     with t2:
+        show_registration_password = st.checkbox("👁 Afficher les mots de passe", key="show_registration_password")
+        registration_password_type = "default" if show_registration_password else "password"
         with st.form("reg_f"):
             name = st.text_input("Prénom et nom *")
             account_role = st.selectbox("Type de compte", ["Client", "Vendeur"], help="Un vendeur peut publier ses produits dans la marketplace.")
@@ -1039,8 +1041,8 @@ elif choice == "🔐 Connexion / Inscription":
             addr = st.text_input("Adresse de livraison (facultatif)")
             email = st.text_input("E-mail (facultatif)")
             comp = st.text_input("Nom de boutique / entreprise (facultatif)")
-            p1 = st.text_input("Mot de passe *", type="password")
-            p2 = st.text_input("Confirmation mot de passe *", type="password")
+            p1 = st.text_input("Mot de passe *", type=registration_password_type)
+            p2 = st.text_input("Confirmation mot de passe *", type=registration_password_type)
             cgu = st.checkbox("J'accepte les conditions de service *")
             if st.form_submit_button("Créer mon compte"):
                 if not name or not phone or not p1 or p1 != p2 or not cgu:
