@@ -28,6 +28,10 @@ def get_connection():
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
+def normalize_phone(phone: str) -> str:
+    """Normalise un numéro pour comparer les formats (espaces, +, tirets, etc.)."""
+    return "".join(ch for ch in str(phone or "") if ch.isdigit())
+
 def generate_ref(prefix: str) -> str:
     rand_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
     return f"{prefix}-{datetime.now().strftime('%y%m')}-{rand_str}"
@@ -1018,16 +1022,30 @@ elif choice == "🔐 Connexion / Inscription":
             ph = st.text_input("Nom d’utilisateur ou numéro WhatsApp")
             pw = st.text_input("Mot de passe", type="password")
             if st.form_submit_button("Se connecter"):
+                identifiant = ph.strip()
                 conn = get_connection()
-                u = conn.execute("SELECT * FROM users WHERE (whatsapp=? OR username=?) AND password_hash=?", (ph.strip(), ph.strip(), hash_password(pw))).fetchone()
-                conn.close()
+                try:
+                    candidates = conn.execute(
+                        "SELECT * FROM users WHERE whatsapp=? OR username=?",
+                        (identifiant, identifiant)
+                    ).fetchall()
+                    # Accepte aussi les anciens numéros saisis avec espaces, + ou tirets.
+                    if not candidates and normalize_phone(identifiant):
+                        candidates = conn.execute("SELECT * FROM users").fetchall()
+                        candidates = [row for row in candidates if normalize_phone(row['whatsapp']) == normalize_phone(identifiant)]
+                    u = next((row for row in candidates if row['password_hash'] == hash_password(pw)), None)
+                except sqlite3.Error as err:
+                    u = None
+                    st.error(f"Erreur de connexion à la base de données : {err}")
+                finally:
+                    conn.close()
                 if u and u['status'] == 'actif':
                     st.session_state.user = dict(u)
                     st.rerun()
                 elif u and u['status'] != 'actif':
-                    st.error("Compte suspendu.")
+                    st.error("Ce compte est suspendu. Contactez le support.")
                 else:
-                    st.error("Identifiants invalides.")
+                    st.error("Identifiant ou mot de passe incorrect. Vérifiez le numéro WhatsApp utilisé lors de l'inscription.")
         with st.expander("Comptes de test"):
             st.write("Administrateur : identifiant `sambafall` | mot de passe `samba2026` (à changer après première connexion).")
     with t2:
@@ -1048,17 +1066,33 @@ elif choice == "🔐 Connexion / Inscription":
                 if not name or not phone or not p1 or p1 != p2 or not cgu:
                     st.error("Vérifiez les champs obligatoires, la confirmation du mot de passe et l'acceptation des conditions.")
                 else:
-                    conn = get_connection()
-                    try:
-                        conn.execute('''INSERT INTO users (role, full_name, whatsapp, city, address, email, company, password_hash, status, created_at)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?)''',
-                                     ('seller' if account_role == 'Vendeur' else 'client', name.strip(), phone.strip(), city, addr, email, comp, hash_password(p1), datetime.now().strftime("%Y-%m-%d %H:%M")))
-                        conn.commit()
-                        st.success("Compte créé ! Connectez-vous dans l'onglet Connexion.")
-                    except Exception:
-                        st.error("Ce numéro WhatsApp existe déjà.")
-                    finally:
-                        conn.close()
+                    phone_normalized = normalize_phone(phone)
+                    if len(phone_normalized) < 8:
+                        st.error("Entrez un numéro WhatsApp valide (au moins 8 chiffres).")
+                    else:
+                        conn = get_connection()
+                        try:
+                            existing = conn.execute("SELECT id, whatsapp FROM users").fetchall()
+                            if any(normalize_phone(row['whatsapp']) == phone_normalized for row in existing):
+                                st.error("Ce numéro WhatsApp est déjà associé à un compte. Connectez-vous ou utilisez un autre numéro.")
+                            else:
+                                cur = conn.execute("""INSERT INTO users (role, full_name, whatsapp, city, address, email, company, password_hash, status, created_at)
+                                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'actif', ?)""",
+                                                  ('seller' if account_role == 'Vendeur' else 'client', name.strip(), phone_normalized, city, addr.strip(), email.strip(), comp.strip(), hash_password(p1), datetime.now().strftime("%Y-%m-%d %H:%M")))
+                                conn.commit()
+                                new_user = conn.execute("SELECT * FROM users WHERE id=?", (cur.lastrowid,)).fetchone()
+                                if new_user:
+                                    st.session_state.user = dict(new_user)
+                                    st.success("Compte créé avec succès ! Vous êtes maintenant connecté.")
+                                    st.rerun()
+                        except sqlite3.IntegrityError as err:
+                            conn.rollback()
+                            st.error(f"Impossible de créer le compte : numéro ou identifiant déjà utilisé. ({err})")
+                        except sqlite3.Error as err:
+                            conn.rollback()
+                            st.error(f"Erreur de base de données lors de l'inscription : {err}")
+                        finally:
+                            conn.close()
     with t3:
         fp = st.text_input("Numéro WhatsApp du compte")
         st.markdown(f'<a href="{get_whatsapp_link(f"Bonjour SF Groupage, réinitialisation mot de passe pour {fp}")}" target="_blank" class="whatsapp-btn">📲 Contacter le support WhatsApp</a>', unsafe_allow_html=True)
